@@ -1,0 +1,69 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:TinyStudio.ViewModels"
+        xmlns:vm="clr-namespace:TinyStudio.Models"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="500"
+        Width="500" Height="500"
+        MinWidth="450" MinHeight="400"
+        x:Class="TinyStudio.Views.UnityCNKeyWindow"
+        Title="UnityCNKeyWindow">
+    <Design.DataContext>
+        <viewModels:UnityCNKeyWindowViewModel/>
+    </Design.DataContext>
+    
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Select key:" FontWeight="Bold" Margin="0,0,0,5"/>
+        
+        <ListBox Grid.Row="1" x:DataType="viewModels:UnityCNKeyWindowViewModel"
+                 ItemsSource="{Binding Keys}" 
+                 SelectedItem="{Binding SelectedKey}"
+                 Margin="0,0,0,10"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:UnityCNKey">
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Key}" FontSize="12" Foreground="Gray" 
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Separator Grid.Row="2" Margin="0,10"/>
+
+        <TextBlock Grid.Row="3" Text="Add New Key:" FontWeight="Bold" Margin="0,10,0,5"/>
+        
+        <StackPanel Grid.Row="4" Orientation="Vertical" Spacing="8" Margin="0,0,0,15">
+            <TextBox Watermark="Name" Text="{Binding CustomName}" 
+                     x:DataType="viewModels:UnityCNKeyWindowViewModel"
+                     MinWidth="200" HorizontalAlignment="Stretch"/>
+            <TextBox Watermark="Key" Text="{Binding CustomKey}"
+                     x:DataType="viewModels:UnityCNKeyWindowViewModel"
+                     MinWidth="200" HorizontalAlignment="Stretch"/>
+            <Button Content="Add New Key" Command="{Binding AddCustomKeyCommand}"
+                    x:DataType="viewModels:UnityCNKeyWindowViewModel"
+                    HorizontalAlignment="Right" Width="120" Margin="0,5"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" Spacing="10">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Width="80"
+                    x:DataType="viewModels:UnityCNKeyWindowViewModel"/>
+            <Button Content="Apply" Command="{Binding SelectKeyCommand}" 
+                    CommandParameter="{Binding SelectedKey}" Width="80"
+                    x:DataType="viewModels:UnityCNKeyWindowViewModel"/>
+        </StackPanel>
+    </Grid>
+</Window>

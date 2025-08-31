@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TinyStudio.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="TinyStudio.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="TinyStudio"
+        DragDrop.AllowDrop="True">
+
+    <DockPanel>
+        
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="File">
+                <MenuItem Header="Load File" Command="{Binding LoadFileCommand}"/>
+                <Separator />
+                <MenuItem Header="Reset" Command="{Binding ResetCommand}"/>
+            </MenuItem>
+            
+            <MenuItem Header="Options">
+                <MenuItem Header="Set UnityCN Key" Command="{Binding SetUnityCNKeyCommand}"/>
+                <Separator />
+                <MenuItem Header="Setting" Command="{Binding SettingCommand}"/>
+            </MenuItem>
+            
+            <MenuItem Header="Debug">
+                <MenuItem Header="Enable Console" ToggleType="CheckBox" IsChecked="{Binding IsConsoleVisible}" Command="{Binding ToggleConsoleCommand}"/>
+                <Separator />
+                <MenuItem Header="Console Log Level">
+                    <ItemsControl ItemsSource="{Binding AvailableLevels}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <MenuItem Header="{Binding}" Command="{Binding $parent[Window].DataContext.SetConsoleLogLevelCommand}" CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </MenuItem>
+            </MenuItem>
+            
+            <MenuItem Header="About" Command="{Binding AboutCommand}"/>
+        </Menu>
+        
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" MinWidth="300"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="5*" MinWidth="300"/>
+            </Grid.ColumnDefinitions>
+            
+            <TabControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding FileTabs}" SelectedItem="{Binding SelectedFileTab}">
+                <TabControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TabItemViewModel">
+                        <TextBlock Text="{Binding Header}"/>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:TabItemViewModel">
+                        <ContentControl Content="{Binding Content}"/>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+            
+            <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="5" HorizontalAlignment="Stretch" Background="Gray"/>
+            
+            <TabControl Grid.Row="0" Grid.Column="2" ItemsSource="{Binding ViewTabs}" SelectedItem="{Binding SelectedViewTab}">
+                <TabControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TabItemViewModel">
+                        <TextBlock Text="{Binding Header}"/>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:TabItemViewModel">
+                        <ContentControl Content="{Binding Content}"/>
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+
+            <ProgressBar Grid.Row="1" Grid.Column="0" Value="{Binding ProgressValue}" Minimum="0" Maximum="100" Margin="5,2" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding StatusText}" Margin="5,2" VerticalAlignment="Center"/>
+        </Grid>
+        
+    </DockPanel>
+
+</Window>

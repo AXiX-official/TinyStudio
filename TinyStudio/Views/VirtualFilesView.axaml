@@ -1,0 +1,30 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:TinyStudio.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="TinyStudio.Views.VirtualFilesView"
+             x:DataType="vm:MainWindowViewModel">
+    <DockPanel>
+        <DataGrid ItemsSource="{Binding LoadedFiles}"
+                  Margin="5"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  CanUserResizeColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn 
+                    Header="FileName" 
+                    Binding="{Binding Name}" 
+                    Width="300"
+                    MinWidth="150"/>
+                <DataGridTextColumn 
+                    Header="Path"
+                    Binding="{Binding Path}" 
+                    Width="150"
+                    MinWidth="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

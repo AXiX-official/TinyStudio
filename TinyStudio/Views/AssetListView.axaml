@@ -1,0 +1,41 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:TinyStudio.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="TinyStudio.Views.AssetListView"
+             x:DataType="vm:MainWindowViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+            <TextBox Watermark="Search..." Margin="5"/>
+            <Button Content="Search" Margin="5" HorizontalAlignment="Left"/>
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding LoadedAssets}"
+                  SelectedItem="{Binding SelectedAsset}"
+                  Margin="5"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  CanUserResizeColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name"
+                                    Binding="{Binding Name}"
+                                    Width="300"
+                                    MinWidth="150"/>
+                <DataGridTextColumn Header="Type"
+                                    Binding="{Binding Type}"
+                                    Width="150"
+                                    MinWidth="100"/>
+                <DataGridTextColumn Header="PathID"
+                                    Binding="{Binding PathId}"
+                                    Width="150"
+                                    MinWidth="100"/>
+                <DataGridTextColumn Header="Size"
+                                    Binding="{Binding Size}"
+                                    Width="150"
+                                    MinWidth="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>
