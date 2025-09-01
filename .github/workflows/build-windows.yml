@@ -1,0 +1,44 @@
+name: Build TinyStudio for Windows
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore TinyStudio.sln
+
+      - name: Build and publish for .NET 8
+        run: dotnet publish TinyStudio.sln --configuration Release --framework net8.0 --runtime win-x64 --output ./publish-net8 --no-restore
+
+      - name: Build and publish for .NET 9
+        run: dotnet publish TinyStudio.sln --configuration Release --framework net9.0 --runtime win-x64 --output ./publish-net9 --no-restore
+
+      - name: Upload .NET 8 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net8-windows-x64
+          path: ./publish-net8
+
+      - name: Upload .NET 9 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net9-windows-x64
+          path: ./publish-net9

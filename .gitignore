@@ -3,3 +3,5 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+.idea/
+TinyStudio.sln.DotSettings.user
