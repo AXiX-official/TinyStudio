@@ -15,6 +15,7 @@ public class PreviewerFactory
         _previewers = new List<IPreviewer>
         {
             new TexturePreviewer(),
+            new TextPreviewer(),
             // Add other previewers here
             new DefaultPreviewer()
         };

@@ -8,9 +8,9 @@ using SixLabors.ImageSharp.Processing;
 using TinyStudio.Models;
 using TinyStudio.Views;
 using UnityAsset.NET;
-using UnityAsset.NET.Classes;
 using UnityAsset.NET.Enums;
 using UnityAsset.NET.TextureHelper;
+using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
 
 namespace TinyStudio.Previewer;
 

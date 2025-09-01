@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:TinyStudio.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="TinyStudio.Views.TextPreviewView"
+             x:DataType="vm:TextPreviewViewModel">
+    <DockPanel>
+        <Button DockPanel.Dock="Top" 
+                Content="{Binding ToggleButtonText}"
+                Command="{Binding ToggleModeCommand}"
+                HorizontalAlignment="Right"/>
+        <TextBox Text="{Binding TextContent}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 FontFamily="Cascadia Mono,Consolas,Menlo,Monospace"/>
+    </DockPanel>
+</UserControl>
