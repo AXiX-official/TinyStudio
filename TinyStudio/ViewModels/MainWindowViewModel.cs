@@ -234,16 +234,16 @@ public partial class MainWindowViewModel : ObservableObject
                 StatusText = "No files to load.";
                 return;
             }
-            
-            var progressReporter = new Progress<LoadProgress>();
 
-            progressReporter.ProgressChanged += (sender, loadProgress) =>
-            {
-                StatusText = loadProgress.StatusText;
-                ProgressValue = (int)loadProgress.Percentage;
-            };
+            var throttledProgress = new ThrottledProgress(
+                new Progress<LoadProgress>(progress =>
+                {
+                    StatusText = progress.StatusText;
+                    ProgressValue = (int)progress.Percentage;
+                }), 
+                TimeSpan.FromMilliseconds(100));
 
-            var virtualFiles = await _fileSystem.LoadAsync(pathList, progressReporter);
+            var virtualFiles = await _fileSystem.LoadAsync(pathList, throttledProgress);
             
             LoadedFiles.Clear();
             foreach (var virtualFile in virtualFiles)
@@ -251,7 +251,7 @@ public partial class MainWindowViewModel : ObservableObject
                 LoadedFiles.Add(virtualFile);
             }
 
-            await _assetManager.LoadAsync(virtualFiles, progressReporter);
+            await _assetManager.LoadAsync(virtualFiles, throttledProgress);
 
             Dispatcher.UIThread.Invoke(() =>
             {
