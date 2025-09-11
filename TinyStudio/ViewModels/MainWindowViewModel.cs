@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -70,8 +71,11 @@ public partial class MainWindowViewModel : ObservableObject
     
     public MainWindowViewModel()
     {
-        _fileSystem = new DirectFileSystem();
-        _assetManager = new AssetManager(_fileSystem);
+        _fileSystem = new DirectFileSystem((filePath, ex, errorMessage) =>
+        {
+            LogService.Error(errorMessage);
+        });
+        _assetManager = new AssetManager(_fileSystem, null);
         _previewerFactory = new PreviewerFactory();
         _previewControl = _previewerFactory.GetPreview(null, _assetManager);
         _loadedFiles = new ();
@@ -197,12 +201,13 @@ public partial class MainWindowViewModel : ObservableObject
         if (_window == null)
         {
             StatusText = "Error: Window reference not set!";
+            LogService.Error("Window reference not set!");
             return;
         }
         
         var fileTypes = new List<FilePickerFileType>
         {
-            new("any file") { Patterns = new[] { "*" } },
+            new("any file") { Patterns = [ "*" ] },
         };
         
         var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -219,6 +224,55 @@ public partial class MainWindowViewModel : ObservableObject
         else
         {
             StatusText = "File loading canceled.";
+            LogService.Info("File loading canceled.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadFileList()
+    {
+        if (_window == null)
+        {
+            StatusText = "Error: Window reference not set!";
+            LogService.Error("Window reference not set!");
+            return;
+        }
+        
+        var fileTypes = new List<FilePickerFileType>
+        {
+            new("FileList") { Patterns = [ "*.txt" ] },
+        };
+        
+        var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load FileList",
+            AllowMultiple = false,
+            FileTypeFilter = fileTypes
+        });
+        
+        if (files.Any())
+        {
+            var folder = await _window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Choose Directory",
+                AllowMultiple = false
+            });
+
+            var baseDirectory = folder.Any() ? folder[0].Path.LocalPath : string.Empty;
+            
+            await using FileStream fs = new FileStream(files[0].Path.LocalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using StreamReader reader = new StreamReader(fs);
+            var filePath = new List<string>();
+            while (await reader.ReadLineAsync() is {} line)
+            {
+                filePath.Add(Path.Combine(baseDirectory, line));
+            }
+            await LoadFilesFromPathsAsync(filePath);
+        }
+        else
+        {
+            StatusText = "File loading canceled.";
+            LogService.Info("File loading canceled.");
         }
     }
 
