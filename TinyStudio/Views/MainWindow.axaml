@@ -22,6 +22,19 @@
             
             <MenuItem Header="Options">
                 <MenuItem Header="Set UnityCN Key" Command="{Binding SetUnityCNKeyCommand}"/>
+                <MenuItem StaysOpenOnClick="True" Focusable="False">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="DefaultUnityVersion: " VerticalAlignment="Center"/>
+                            <TextBox x:Name="VersionTextBox" 
+                                     Width="100" 
+                                     Text="{Binding DefaultUnityVersion, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="5,0"
+                                     Padding="2"
+                                     Background="White"/>
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
                 <Separator />
                 <MenuItem Header="Setting" Command="{Binding SettingCommand}"/>
             </MenuItem>

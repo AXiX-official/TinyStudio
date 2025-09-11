@@ -31,6 +31,9 @@ public partial class MainWindowViewModel : ObservableObject
     private ConsoleLogViewModel? _consoleLogViewModel;
     private readonly PreviewerFactory _previewerFactory;
 
+    [ObservableProperty] 
+    private string _defaultUnityVersion;
+
     [ObservableProperty]
     private Control _previewControl;
 
@@ -84,6 +87,12 @@ public partial class MainWindowViewModel : ObservableObject
         LogService.Info("Application startup complete.");
         LogService.Debug("This is a debug message.");
         LogService.Verbose("This is a verbose message.");
+    }
+    
+    partial void OnDefaultUnityVersionChanged(string value)
+    {
+        UnityAsset.NET.Setting.DefaultUnityVerion = value;
+        LogService.Debug($"Default Unity Version set to {value}");
     }
     
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs? e)
