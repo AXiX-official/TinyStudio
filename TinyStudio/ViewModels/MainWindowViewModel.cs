@@ -288,8 +288,8 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task LoadFilesFromPathsAsync(IEnumerable<string> paths)
     {
         Reset();
-        /*try
-        {*/
+        try
+        {
             var pathList = paths.ToList();
             if (!pathList.Any())
             {
@@ -298,15 +298,17 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
             }
 
-            var throttledProgress = new ThrottledProgress(
-                new Progress<LoadProgress>(progress =>
+            var progress = new ThrottledProgress(
+                new Progress<LoadProgress>(p =>
                 {
-                    StatusText = progress.StatusText;
-                    ProgressValue = (int)progress.Percentage;
+                    StatusText = p.StatusText;
+                    ProgressValue = (int)p.Percentage;
                 }), 
                 TimeSpan.FromMilliseconds(100));
 
-            var virtualFiles = await _fileSystem.LoadAsync(pathList, throttledProgress);
+            var virtualFiles = await _fileSystem.LoadAsync(pathList, progress);
+            
+            progress.Flush();
             
             LoadedFiles.Clear();
             foreach (var virtualFile in virtualFiles)
@@ -314,32 +316,26 @@ public partial class MainWindowViewModel : ObservableObject
                 LoadedFiles.Add(virtualFile);
             }
 
-            await _assetManager.LoadAsync(virtualFiles, throttledProgress);
-
-            Dispatcher.UIThread.Invoke(() =>
-            {
-                StatusText = "Loading Assets.";
-                ProgressValue = 50;
-            });
-            var assets = _assetManager.LoadedAssets
+            await _assetManager.LoadAsync(virtualFiles, progress);
+            
+            progress.Flush();
+            
+            StatusText = "Loading Assets.";
+            ProgressValue = 50;
+            var assets = await Task.Run(() =>
+                _assetManager.LoadedAssets
                 .Select(asset => new AssetWrapper(asset))
-                .ToList();
+                .ToList());
             LoadedAssets = new ObservableCollection<AssetWrapper>(assets);
-            Dispatcher.UIThread.Invoke(() =>
-            {
-                StatusText = $"Loaded {assets.Count} Assets.";
-                ProgressValue = 100;
-            });
-        /*}
+            StatusText = $"Loaded {assets.Count} Assets.";
+            ProgressValue = 100;
+        }
         catch (Exception ex)
         {
             LogService.Error($"Error occurred: {ex.Message}\n{ex.StackTrace}");
             StatusText = $"Error: {ex.Message}";
+            throw;
         }
-        finally
-        {
-            ProgressValue = 0;
-        }*/
     }
 
     [RelayCommand]
