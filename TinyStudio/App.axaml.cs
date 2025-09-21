@@ -42,8 +42,5 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
-#if DEBUG
-        UnityAsset.NET.TypeTreeHelper.AssemblyManager.WriteGeneratedCodeToDisk = true;
-#endif
     }
 }
