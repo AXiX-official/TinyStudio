@@ -8,8 +8,9 @@ using SixLabors.ImageSharp.Processing;
 using TinyStudio.Models;
 using TinyStudio.Views;
 using UnityAsset.NET;
+using UnityAsset.NET.AssetHelper;
+using UnityAsset.NET.AssetHelper.TextureHelper;
 using UnityAsset.NET.Enums;
-using UnityAsset.NET.TextureHelper;
 using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
 
 namespace TinyStudio.Previewer;
@@ -39,7 +40,7 @@ public class TexturePreviewer : IPreviewer
     {
         try
         {
-            var imgData = await Task.Run(() => TextureHelper.Decode(texture2D, assetManager));
+            var imgData = await Task.Run(() => assetManager.DecodeTexture2D(texture2D));
 
             using var image = SixLabors.ImageSharp.Image.LoadPixelData<Bgra32>(imgData, texture2D.m_Width, texture2D.m_Height);
             image.Mutate(x => x.Flip(FlipMode.Vertical));

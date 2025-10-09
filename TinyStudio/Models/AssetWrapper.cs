@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityAsset.NET;
+using UnityAsset.NET.TypeTreeHelper.PreDefined;
 using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
 
 namespace TinyStudio.Models;
