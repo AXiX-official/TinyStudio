@@ -236,6 +236,35 @@ public partial class MainWindowViewModel : ObservableObject
             LogService.Info("File loading canceled.");
         }
     }
+    
+    [RelayCommand]
+    private async Task LoadFolder()
+    {
+        if (_window == null)
+        {
+            StatusText = "Error: Window reference not set!";
+            LogService.Error("Window reference not set!");
+            return;
+        }
+        
+        var folders = await _window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Load Folder",
+            AllowMultiple = false
+        });
+        
+        if (folders.Any())
+        {
+            var folderPath = folders[0].Path.LocalPath;
+            var filePaths = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
+            await LoadFilesFromPathsAsync(filePaths);
+        }
+        else
+        {
+            StatusText = "Folder loading canceled.";
+            LogService.Info("Folder loading canceled.");
+        }
+    }
 
     [RelayCommand]
     private async Task LoadFileList()
@@ -305,8 +334,10 @@ public partial class MainWindowViewModel : ObservableObject
                     ProgressValue = (int)p.Percentage;
                 }), 
                 TimeSpan.FromMilliseconds(100));
-
+            
+            LogService.Info($"Starting to load {pathList.Count} files.");
             var virtualFiles = await _fileSystem.LoadAsync(pathList, progress);
+            LogService.Info($"Loaded {pathList.Count} files.");
             
             progress.Flush();
             
@@ -315,8 +346,8 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 LoadedFiles.Add(virtualFile);
             }
-
-            await _assetManager.LoadAsync(virtualFiles, progress);
+            
+            await _assetManager.LoadAsync(virtualFiles, true, progress);
             
             progress.Flush();
             
