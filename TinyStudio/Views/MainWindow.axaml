@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TinyStudio.ViewModels"
+        xmlns:models="using:TinyStudio.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -38,6 +39,11 @@
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Setting" Command="{Binding SettingCommand}"/>
+                <Separator />
+                <MenuItem Header="Specify Game">
+                    <MenuItem Header="Normal" IsChecked="{Binding IsNormalGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.Normal}"/>
+                    <MenuItem Header="GF" IsChecked="{Binding IsGfGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.GF}"/>
+                </MenuItem>
             </MenuItem>
             
             <MenuItem Header="Debug">

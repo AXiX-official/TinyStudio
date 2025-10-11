@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using AvaloniaEdit.Document;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using TinyStudio.Games.GF;
 using TinyStudio.Models;
 using TinyStudio.Service;
 using TinyStudio.Previewer;
@@ -24,8 +24,10 @@ namespace TinyStudio.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly IFileSystem _fileSystem;
-    private readonly AssetManager _assetManager;
+    private readonly SettingsService _settingsService;
+    private readonly Settings _settings;
+    private IFileSystem _fileSystem;
+    private AssetManager _assetManager;
     private Window? _window;
     private TabItemViewModel? _consoleTab;
     private ConsoleLogViewModel? _consoleLogViewModel;
@@ -70,14 +72,47 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isConsoleVisible = true;
 
+    [ObservableProperty]
+    private Game _currentGame;
+
+    public bool IsNormalGame => CurrentGame == Game.Normal;
+    public bool IsGfGame => CurrentGame == Game.GF;
+
+    partial void OnCurrentGameChanged(Game value)
+    {
+        OnPropertyChanged(nameof(IsNormalGame));
+        OnPropertyChanged(nameof(IsGfGame));
+    }
+
+    [RelayCommand]
+    private void SetGame(Game game)
+    {
+        if (CurrentGame == game)
+        {
+            return;
+        }
+
+        Reset();
+        CurrentGame = game;
+        _settings.GameType = game;
+        _settingsService.SaveSettings(_settings);
+
+        _fileSystem = CreateFileSystem(game);
+        _assetManager = new AssetManager(_fileSystem, null);
+    
+        LogService.Info($"Game type set to {game}.");
+    }
+
+
     public IReadOnlyList<LogLevel> AvailableLevels { get; } = Enum.GetValues<LogLevel>();
     
     public MainWindowViewModel()
     {
-        _fileSystem = new DirectFileSystem((filePath, ex, errorMessage) =>
-        {
-            LogService.Error(errorMessage);
-        });
+        _settingsService = new SettingsService();
+        _settings = _settingsService.LoadSettings();
+        _currentGame = _settings.GameType;
+
+        _fileSystem = CreateFileSystem(CurrentGame);
         _assetManager = new AssetManager(_fileSystem, null);
         _previewerFactory = new PreviewerFactory();
         _previewControl = _previewerFactory.GetPreview(null, _assetManager);
@@ -87,6 +122,26 @@ public partial class MainWindowViewModel : ObservableObject
         LogService.Info("Application startup complete.");
         LogService.Debug("This is a debug message.");
         LogService.Verbose("This is a verbose message.");
+        OnCurrentGameChanged(CurrentGame);
+    }
+
+    private IFileSystem CreateFileSystem(Game game)
+    {
+        switch (game)
+        {
+            case Game.Normal:
+                return new DirectFileSystem((filePath, ex, errorMessage) =>
+                {
+                    LogService.Error(errorMessage);
+                });
+            case Game.GF:
+                return new GfFileSystem((filePath, ex, errorMessage) =>
+                {
+                    LogService.Error(errorMessage);
+                });
+            default:
+                throw new ArgumentOutOfRangeException(nameof(game), game, null);
+        }
     }
     
     partial void OnDefaultUnityVersionChanged(string value)
