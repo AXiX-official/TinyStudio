@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -34,7 +33,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly PreviewerFactory _previewerFactory;
 
     [ObservableProperty] 
-    private string _defaultUnityVersion;
+    private string _defaultUnityVersion = string.Empty;
 
     [ObservableProperty]
     private Control _previewControl;
@@ -118,7 +117,6 @@ public partial class MainWindowViewModel : ObservableObject
         _previewControl = _previewerFactory.GetPreview(null, _assetManager);
         _loadedFiles = new ();
         InitializeTabs();
-        PropertyChanged += OnPropertyChanged;
         LogService.Info("Application startup complete.");
         LogService.Debug("This is a debug message.");
         LogService.Verbose("This is a verbose message.");
@@ -149,38 +147,38 @@ public partial class MainWindowViewModel : ObservableObject
         UnityAsset.NET.Setting.DefaultUnityVerion = value;
         LogService.Debug($"Default Unity Version set to {value}");
     }
-    
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs? e)
+
+    partial void OnSelectedAssetChanged(AssetWrapper? value)
     {
-        if (e.PropertyName == nameof(SelectedAsset))
-        {
-            _ = UpdateDumpContentAsync();
-            UpdatePreviewControl();
-        }
+        UpdateDumpContent();
+        UpdatePreviewControl();
     }
-    
-    private async Task UpdateDumpContentAsync()
+
+    private void UpdateDumpContent()
     {
         if (SelectedAsset == null)
         {
             DumpDocument.Text = "Select an asset to view its content";
             return;
         }
-        
-            
-        var content = await Task.Run(() => SelectedAsset.ToDump);
-            
-        DumpDocument.Text = content;
+
+        Task.Run(() => SelectedAsset.ToDump)
+            .ContinueWith(task =>
+            {
+                if (task.IsCompletedSuccessfully)
+                {
+                    DumpDocument.Text = task.Result;
+                }
+                else
+                {
+                    DumpDocument.Text = $"Error dumping asset: {task.Exception?.Message}";
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
     private void UpdatePreviewControl()
     {
         PreviewControl = _previewerFactory.GetPreview(SelectedAsset, _assetManager);
-    }
-    
-    public void Cleanup()
-    {
-        PropertyChanged -= OnPropertyChanged;
     }
     
     private void InitializeTabs()
