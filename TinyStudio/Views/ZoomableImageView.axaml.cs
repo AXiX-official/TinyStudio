@@ -30,17 +30,22 @@ public partial class ZoomableImageView : UserControl
 
         _checkerboard.Background = CreateCheckerboardBrush();
         
-        this.PointerWheelChanged += OnPointerWheelChanged;
-        this.PointerPressed += OnPointerPressed;
-        this.PointerMoved += OnPointerMoved;
-        this.PointerReleased += OnPointerReleased;
+        PointerWheelChanged += OnPointerWheelChanged;
+        PointerPressed += OnPointerPressed;
+        PointerMoved += OnPointerMoved;
+        PointerReleased += OnPointerReleased;
         _resetButton.Click += (s, e) => Reset();
     }
 
-    public void SetImage(Bitmap source, int width, int height, string format)
+    public void SetImage(Bitmap source)
     {
         _image.Source = source;
-        _infoTextBlock.Text = $"Width: {width}\nHeight: {height}\nFormat: {format}";
+        Reset();
+    }
+    
+    public void SetInfo(string info)
+    {
+        _infoTextBlock.Text = info;
         Reset();
     }
 

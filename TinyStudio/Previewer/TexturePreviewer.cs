@@ -19,43 +19,49 @@ public class TexturePreviewer : IPreviewer
 {
     public bool CanHandle(AssetWrapper asset)
     {
-        return asset.Value is ITexture2D;
+        return asset.Type == "Texture2D" || asset.Type == "Sprite";
     }
 
     public Control CreatePreview(AssetWrapper asset, AssetManager assetManager)
     {
-        if (asset.Value is not ITexture2D texture2D)
+        if (!CanHandle(asset))
         {
             return new TextBlock { Text = "Not a texture." };
         }
 
         var zoomableImageView = new ZoomableImageView();
 
-        _ = LoadTextureAsync(texture2D, assetManager, zoomableImageView);
+        if (asset.Value is ITexture2D texture2D)
+            _ = LoadTextureAsync(texture2D, assetManager, zoomableImageView);
+        else if (asset.Value is ISprite sprite)
+            _ = LoadSpriteAsync(sprite, assetManager, zoomableImageView);
 
         return zoomableImageView;
     }
 
     private async Task LoadTextureAsync(ITexture2D texture2D, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
-        try
-        {
-            var imgData = await Task.Run(() => assetManager.DecodeTexture2D(texture2D));
+        using var image = await Task.Run(() => assetManager.DecodeTexture2DToImage(texture2D));
 
-            using var image = SixLabors.ImageSharp.Image.LoadPixelData<Bgra32>(imgData, texture2D.m_Width, texture2D.m_Height);
-            image.Mutate(x => x.Flip(FlipMode.Vertical));
+        await LoadImageAsync(image, zoomableImageView);
 
-            var memoryStream = new MemoryStream();
-            await image.SaveAsPngAsync(memoryStream);
-            memoryStream.Seek(0, SeekOrigin.Begin);
+        zoomableImageView.SetInfo($"Width: {texture2D.m_Width}\nHeight: {texture2D.m_Height}\nFormat: {((TextureFormat)texture2D.m_TextureFormat).ToString()}");
+    }
+    
+    private async Task LoadSpriteAsync(ISprite sprite, AssetManager assetManager, ZoomableImageView zoomableImageView)
+    {
+        using var image = await Task.Run(() => assetManager.DecodeSpriteToImage(sprite));
 
-            var bitmap = new Bitmap(memoryStream);
-            zoomableImageView.SetImage(bitmap, texture2D.m_Width, texture2D.m_Height,
-                ((TextureFormat)texture2D.m_TextureFormat).ToString());
-        }
-        catch (System.Exception e)
-        {
-            // Handle error display in a future implementation, maybe by adding a method to ZoomableImageView
-        }
+        await LoadImageAsync(image, zoomableImageView);
+    }
+    
+    private async Task LoadImageAsync(Image<Bgra32> image, ZoomableImageView zoomableImageView)
+    {
+        var memoryStream = new MemoryStream();
+        await image.SaveAsPngAsync(memoryStream);
+        memoryStream.Seek(0, SeekOrigin.Begin);
+
+        var bitmap = new Bitmap(memoryStream);
+        zoomableImageView.SetImage(bitmap);
     }
 }
