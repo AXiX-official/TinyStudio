@@ -158,7 +158,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (SelectedAsset == null)
         {
-            DumpDocument.Text = "Select an asset to view its content";
+            DumpDocument = new("Select an asset to view its content");
             return;
         }
 
@@ -167,11 +167,11 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 if (task.IsCompletedSuccessfully)
                 {
-                    DumpDocument.Text = task.Result;
+                    DumpDocument = new(task.Result);
                 }
                 else
                 {
-                    DumpDocument.Text = $"Error dumping asset: {task.Exception?.Message}";
+                    DumpDocument = new($"Error dumping asset: {task.Exception?.Message}");
                 }
             }, TaskScheduler.FromCurrentSynchronizationContext());
     }

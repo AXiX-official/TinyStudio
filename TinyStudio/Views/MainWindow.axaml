@@ -77,7 +77,7 @@
             <TabControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding FileTabs}" SelectedItem="{Binding SelectedFileTab}">
                 <TabControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TabItemViewModel">
-                        <TextBlock Text="{Binding Header}"/>
+                        <TextBlock FontSize="14" Text="{Binding Header}"/>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
@@ -92,7 +92,7 @@
             <TabControl Grid.Row="0" Grid.Column="2" ItemsSource="{Binding ViewTabs}" SelectedItem="{Binding SelectedViewTab}">
                 <TabControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TabItemViewModel">
-                        <TextBlock Text="{Binding Header}"/>
+                        <TextBlock FontSize="14" Text="{Binding Header}"/>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
