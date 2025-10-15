@@ -58,6 +58,7 @@ public partial class MainWindowViewModel : ObservableObject
     
     [ObservableProperty]
     private AssetWrapper? _selectedAsset;
+    //private AssetWrapper? _prevSelectedAsset;
     
     [ObservableProperty]
     private TextDocument _dumpDocument = new();
@@ -150,6 +151,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedAssetChanged(AssetWrapper? value)
     {
+        /*if (_prevSelectedAsset?.Size >= 0x1000000)
+        {
+            _prevSelectedAsset?.Release();
+        }
+        _prevSelectedAsset = value;*/
         UpdateDumpContent();
         UpdatePreviewControl();
     }
@@ -159,6 +165,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (SelectedAsset == null)
         {
             DumpDocument = new("Select an asset to view its content");
+            DumpDocument.UndoStack.SizeLimit = 0;
             return;
         }
 
@@ -173,6 +180,7 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     DumpDocument = new($"Error dumping asset: {task.Exception?.Message}");
                 }
+                DumpDocument.UndoStack.SizeLimit = 0;
             }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 

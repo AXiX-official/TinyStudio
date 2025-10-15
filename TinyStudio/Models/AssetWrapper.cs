@@ -1,7 +1,5 @@
-﻿using System;
-using UnityAsset.NET;
+﻿using UnityAsset.NET;
 using UnityAsset.NET.TypeTreeHelper.PreDefined;
-using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
 
 namespace TinyStudio.Models;
 
@@ -24,5 +22,10 @@ public class AssetWrapper
     public AssetWrapper(Asset asset)
     {
         m_Asset = asset;
+    }
+
+    public void Release()
+    {
+        m_Asset.Release();
     }
 }

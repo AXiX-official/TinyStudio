@@ -10,7 +10,29 @@
     <avaloniaEdit:TextEditor 
         Document="{Binding DumpDocument, Mode=OneWay}"
         IsReadOnly="True"
-        WordWrap="True"
+        IsModified="False"
+        WordWrap="False"
         Margin="5"
-        FontFamily="Consolas, Courier New, monospace"/>
+        FontFamily="Consolas, Courier New, monospace">
+        <avaloniaEdit:TextEditor.Options>
+            <avaloniaEdit:TextEditorOptions
+                AllowScrollBelowDocument="False"
+                CutCopyWholeLine="False"
+                EnableHyperlinks="False"
+                EnableEmailHyperlinks="False"
+                EnableRectangularSelection="False"
+                RequireControlModifierForHyperlinkClick="True"
+                ConvertTabsToSpaces="True"
+                IndentationSize="4"
+                ShowTabs="True" 
+                
+                EnableImeSupport="False"
+                EnableVirtualSpace="False"
+                EnableTextDragDrop="False"
+                AllowToggleOverstrikeMode="False"
+                ShowBoxForControlCharacters="False"
+                HighlightCurrentLine="True" 
+                ExtendSelectionOnMouseUp="False"/>
+        </avaloniaEdit:TextEditor.Options>
+    </avaloniaEdit:TextEditor>
 </UserControl>
