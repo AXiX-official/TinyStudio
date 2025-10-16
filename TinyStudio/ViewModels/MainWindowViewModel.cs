@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using AvaloniaEdit.Document;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TinyStudio.Games.GF;
@@ -28,6 +27,9 @@ public partial class MainWindowViewModel : ObservableObject
     private IFileSystem _fileSystem;
     private AssetManager _assetManager;
     private Window? _window;
+    private TabItemViewModel? _previewTab;
+    private TabItemViewModel? _dumpTab;
+    private DumpViewModel? _dumpViewModel;
     private TabItemViewModel? _consoleTab;
     private ConsoleLogViewModel? _consoleLogViewModel;
     private readonly PreviewerFactory _previewerFactory;
@@ -61,16 +63,19 @@ public partial class MainWindowViewModel : ObservableObject
     //private AssetWrapper? _prevSelectedAsset;
     
     [ObservableProperty]
-    private TextDocument _dumpDocument = new();
-    
-    [ObservableProperty]
     private int _progressValue;
 
     [ObservableProperty]
     private string _statusText = "Ready";
 
     [ObservableProperty]
-    private bool _isConsoleVisible = true;
+    private bool _isConsoleVisible;
+    
+    [ObservableProperty]
+    private bool _isPreviewEnabled;
+    
+    [ObservableProperty]
+    private bool _isDumpEnabled;
 
     [ObservableProperty]
     private Game _currentGame;
@@ -117,6 +122,11 @@ public partial class MainWindowViewModel : ObservableObject
         _previewerFactory = new PreviewerFactory();
         _previewControl = _previewerFactory.GetPreview(null, _assetManager);
         _loadedFiles = new ();
+        
+        IsPreviewEnabled = _settings.EnablePreview;
+        IsDumpEnabled = _settings.EnableDump;
+        IsConsoleVisible = _settings.EnableConsole;
+        
         InitializeTabs();
         LogService.Info("Application startup complete.");
         LogService.Debug("This is a debug message.");
@@ -156,36 +166,20 @@ public partial class MainWindowViewModel : ObservableObject
             _prevSelectedAsset?.Release();
         }
         _prevSelectedAsset = value;*/
-        UpdateDumpContent();
-        UpdatePreviewControl();
-    }
-
-    private void UpdateDumpContent()
-    {
-        if (SelectedAsset == null)
+        if (IsDumpEnabled)
         {
-            DumpDocument = new("Select an asset to view its content");
-            DumpDocument.UndoStack.SizeLimit = 0;
-            return;
+            _dumpViewModel?.UpdateDumpContent(SelectedAsset);
         }
-
-        Task.Run(() => SelectedAsset.ToDump)
-            .ContinueWith(task =>
-            {
-                if (task.IsCompletedSuccessfully)
-                {
-                    DumpDocument = new(task.Result);
-                }
-                else
-                {
-                    DumpDocument = new($"Error dumping asset: {task.Exception?.Message}");
-                }
-                DumpDocument.UndoStack.SizeLimit = 0;
-            }, TaskScheduler.FromCurrentSynchronizationContext());
+        UpdatePreviewControl();
     }
 
     private void UpdatePreviewControl()
     {
+        if (!IsPreviewEnabled)
+        {
+            PreviewControl = _previewerFactory.GetPreview(null, _assetManager);
+            return;
+        }
         PreviewControl = _previewerFactory.GetPreview(SelectedAsset, _assetManager);
     }
     
@@ -209,17 +203,19 @@ public partial class MainWindowViewModel : ObservableObject
             Content = new AssetListView { DataContext = this }
         });
         
-        ViewTabs.Add(new TabItemViewModel
+        _previewTab = new TabItemViewModel
         {
             Header = "Preview",
             Content = new PreviewView { DataContext = this }
-        });
+        };
+        
+        _dumpViewModel = new DumpViewModel();
 
-        ViewTabs.Add(new TabItemViewModel
+        _dumpTab = new TabItemViewModel
         {
             Header = "Dump",
-            Content = new DumpView { DataContext = this }
-        });
+            Content = new DumpView { DataContext = _dumpViewModel }
+        };
 
         _consoleLogViewModel = new ConsoleLogViewModel();
         _consoleTab = new TabItemViewModel
@@ -227,7 +223,19 @@ public partial class MainWindowViewModel : ObservableObject
             Header = "Console",
             Content = new ConsoleLogView { DataContext = _consoleLogViewModel }
         };
-        ViewTabs.Add(_consoleTab);
+
+        if (IsPreviewEnabled)
+        {
+            ViewTabs.Add(_previewTab);
+        }
+        if (IsDumpEnabled)
+        {
+            ViewTabs.Add(_dumpTab);
+        }
+        if (IsConsoleVisible)
+        {
+            ViewTabs.Add(_consoleTab);
+        }
 
         SelectedFileTab = FileTabs.FirstOrDefault();
         SelectedViewTab = ViewTabs.FirstOrDefault();
@@ -249,6 +257,59 @@ public partial class MainWindowViewModel : ObservableObject
             SelectedViewTab = _consoleTab;
             IsConsoleVisible = true;
         }
+        _settings.EnableConsole = IsConsoleVisible;
+        _settingsService.SaveSettings(_settings);
+    }
+
+    [RelayCommand]
+    private void TogglePreview()
+    {
+        if (_previewTab == null) return;
+
+        if (ViewTabs.Contains(_previewTab))
+        {
+            ViewTabs.Remove(_previewTab);
+            IsPreviewEnabled = false;
+        }
+        else
+        {
+            ViewTabs.Add(_previewTab);
+            SelectedViewTab = _previewTab;
+            IsPreviewEnabled = true;
+        }
+        _settings.EnablePreview = IsPreviewEnabled;
+        _settingsService.SaveSettings(_settings);
+    }
+    
+    [RelayCommand]
+    private void ToggleDump()
+    {
+        
+        if (_dumpTab != null && ViewTabs.Contains(_dumpTab))
+        {
+            if (_dumpTab == null) return;
+            ViewTabs.Remove(_dumpTab);
+            _dumpViewModel?.SetText(string.Empty);
+            _dumpViewModel = null;
+            _dumpTab = null;
+            IsDumpEnabled = false;
+            GC.Collect();
+        }
+        else
+        {
+            _dumpViewModel = new DumpViewModel();
+            _dumpTab = new TabItemViewModel
+            {
+                Header = "Dump",
+                Content = new DumpView { DataContext = _dumpViewModel }
+            };
+            ViewTabs.Add(_dumpTab);
+            SelectedViewTab = _dumpTab;
+            _dumpViewModel.UpdateDumpContent(SelectedAsset);
+            IsDumpEnabled = true;
+        }
+        _settings.EnableDump = IsDumpEnabled;
+        _settingsService.SaveSettings(_settings);
     }
 
     [RelayCommand]

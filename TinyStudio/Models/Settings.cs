@@ -9,4 +9,7 @@ public class Settings
     public UnityCNKey? UnityCNKey { get; set; }
     public bool EnableLogCompression { get; set; } = true;
     public int LogFilesToKeep { get; set; } = 2;
+    public bool EnableDump { get; set; }
+    public bool EnablePreview { get; set; } = true;
+    public bool EnableConsole { get; set; } = true;
 }

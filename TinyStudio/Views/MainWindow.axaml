@@ -44,6 +44,9 @@
                     <MenuItem Header="Normal" IsChecked="{Binding IsNormalGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.Normal}"/>
                     <MenuItem Header="GF" IsChecked="{Binding IsGfGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.GF}"/>
                 </MenuItem>
+                <Separator />
+                <MenuItem Header="Enable Preview" ToggleType="CheckBox" IsChecked="{Binding IsPreviewEnabled}" Command="{Binding TogglePreviewCommand}"/>
+                <MenuItem Header="Enable Dump" ToggleType="CheckBox" IsChecked="{Binding IsDumpEnabled}" Command="{Binding ToggleDumpCommand}"/>
             </MenuItem>
             
             <MenuItem Header="Debug">
