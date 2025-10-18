@@ -7,13 +7,13 @@ namespace TinyStudio.Games.GF;
 
 public class GfCryptoStream : Stream
 {
-    private readonly IReader _baseStream;
+    private readonly Stream _baseStream;
     private readonly byte[] _key;
     private readonly bool _isEncrypted;
 
     public GfCryptoStream(Stream baseStream, byte[] key, bool isEncrypted = true)
     {
-        _baseStream = new CustomStreamReader(baseStream);
+        _baseStream = baseStream;
         _key = key;
         _isEncrypted = isEncrypted;
     }
