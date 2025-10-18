@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -458,8 +459,9 @@ public partial class MainWindowViewModel : ObservableObject
                 TimeSpan.FromMilliseconds(100));
             
             LogService.Info($"Starting to load {pathList.Count} files.");
+            var startTime = Stopwatch.StartNew();
             var virtualFiles = await _fileSystem.LoadAsync(pathList, progress);
-            LogService.Info($"Loaded {pathList.Count} files.");
+            LogService.Info($"Loaded {pathList.Count} files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
             
             progress.Flush();
             
@@ -469,18 +471,25 @@ public partial class MainWindowViewModel : ObservableObject
                 LoadedFiles.Add(virtualFile);
             }
             
+            LogService.Info($"Starting to load bundle file from {virtualFiles.Count} virtual files.");
+            startTime.Restart();
             await _assetManager.LoadAsync(virtualFiles, true, progress);
+            LogService.Info($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
             
             progress.Flush();
             
-            StatusText = "Loading Assets.";
+            StatusText = "Loading Assets...";
+            LogService.Info(StatusText);
+            startTime.Restart();
             ProgressValue = 50;
             var assets = await Task.Run(() =>
                 _assetManager.LoadedAssets
                 .Select(asset => new AssetWrapper(asset))
                 .ToList());
             LoadedAssets = new ObservableCollection<AssetWrapper>(assets);
-            StatusText = $"Loaded {assets.Count} Assets.";
+            StatusText = $"Loaded {assets.Count} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.";
+            LogService.Info(StatusText);
+           
             ProgressValue = 100;
         }
         catch (Exception ex)

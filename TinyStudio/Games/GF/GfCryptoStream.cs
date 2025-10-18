@@ -1,17 +1,19 @@
 using System;
 using System.IO;
+using UnityAsset.NET.IO;
+using UnityAsset.NET.IO.Reader;
 
 namespace TinyStudio.Games.GF;
 
 public class GfCryptoStream : Stream
 {
-    private readonly Stream _baseStream;
+    private readonly IReader _baseStream;
     private readonly byte[] _key;
     private readonly bool _isEncrypted;
 
     public GfCryptoStream(Stream baseStream, byte[] key, bool isEncrypted = true)
     {
-        _baseStream = baseStream;
+        _baseStream = new CustomStreamReader(baseStream);
         _key = key;
         _isEncrypted = isEncrypted;
     }
@@ -33,8 +35,8 @@ public class GfCryptoStream : Stream
         return bytesRead;
     }
 
-    public override bool CanRead => _baseStream.CanRead;
-    public override bool CanSeek => _baseStream.CanSeek;
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
     public override bool CanWrite => false;
     public override long Length => _baseStream.Length;
     public override long Position
@@ -43,17 +45,24 @@ public class GfCryptoStream : Stream
         set => _baseStream.Position = value;
     }
 
-    public override void Flush() => _baseStream.Flush();
-    public override long Seek(long offset, SeekOrigin origin) => _baseStream.Seek(offset, origin);
+    public override void Flush() => throw new NotSupportedException();
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        long newPosition = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _baseStream.Position + offset,
+            SeekOrigin.End => _baseStream.Length + offset,
+            _ => throw new ArgumentException("Invalid seek origin")
+        };
+
+        if (newPosition < 0 || newPosition >= _baseStream.Length)
+            throw new IOException("An attempt was made to move the position before the beginning of the stream.");
+
+        _baseStream.Position = newPosition;
+        return newPosition;
+    }
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _baseStream.Dispose();
-        }
-        base.Dispose(disposing);
-    }
 }
