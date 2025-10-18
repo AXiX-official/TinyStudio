@@ -28,7 +28,7 @@ public partial class ZoomableImageView : UserControl
 
         _image.RenderTransform = _matrixTransform;
 
-        _checkerboard.Background = CreateCheckerboardBrush();
+        _checkerboard.Background = new SolidColorBrush(Color.FromRgb(160, 160, 160));
         
         PointerWheelChanged += OnPointerWheelChanged;
         PointerPressed += OnPointerPressed;
@@ -112,18 +112,21 @@ public partial class ZoomableImageView : UserControl
     
     private static DrawingBrush CreateCheckerboardBrush()
     {
+        var lightColor = Color.FromRgb(240, 240, 240);
+        var darkColor = Color.FromRgb(160, 160, 160);
+        
         var drawing = new DrawingGroup
         {
             Children = 
             {
                 new GeometryDrawing
                 {
-                    Brush = Brushes.LightGray,
+                    Brush = new SolidColorBrush(lightColor),
                     Geometry = new RectangleGeometry(new Rect(0, 0, 20, 20))
                 },
                 new GeometryDrawing
                 {
-                    Brush = Brushes.White,
+                    Brush = new SolidColorBrush(darkColor),
                     Geometry = new GeometryGroup
                     {
                         Children =

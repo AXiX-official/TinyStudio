@@ -5,6 +5,11 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="TinyStudio.Views.ZoomableImageView"
              ClipToBounds="True">
+    <UserControl.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="Save Image..." x:Name="SaveMenuItem"/>
+        </ContextMenu>
+    </UserControl.ContextMenu>
     <Grid>
         <Border x:Name="Checkerboard"/>
         <Image x:Name="Image"
