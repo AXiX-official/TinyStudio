@@ -1,38 +1,37 @@
-using System;
+﻿using System;
 using System.IO;
-using UnityAsset.NET.IO;
-using UnityAsset.NET.IO.Reader;
 
-namespace TinyStudio.Games.GF;
+namespace TinyStudio.Games.PerpetualNovelty;
 
-public class GfCryptoStream : Stream
+public class PerpetualNoveltyStream : Stream
 {
     private readonly Stream _baseStream;
-    private readonly byte[] _key;
-    private readonly bool _isEncrypted;
-    private readonly long _length;
+    private readonly byte _key;
+    private readonly long _blocksAndDirectoryInfoOffset;
+    private readonly long _blocksAndDirectoryInfoEnd;
 
-    public GfCryptoStream(Stream baseStream, byte[] key, bool isEncrypted = true)
+    public PerpetualNoveltyStream(Stream baseStream, long offset, UInt32 blocksAndDirectoryInfoLength, byte key)
     {
         _baseStream = baseStream;
+        _blocksAndDirectoryInfoOffset = offset;
+        _blocksAndDirectoryInfoEnd = offset + Math.Min(68, blocksAndDirectoryInfoLength);
         _key = key;
-        _isEncrypted = isEncrypted;
-        _length = Math.Min(_baseStream.Length, 0x8000);
     }
     
     public override int ReadByte()
     {
-        return (_isEncrypted && _baseStream.Position < _length) ? _baseStream.ReadByte() ^ _key[
-            (_baseStream.Position - 1) % 0x10] : _baseStream.ReadByte();
+        return (_baseStream.Position >= _blocksAndDirectoryInfoOffset && _baseStream.Position < _blocksAndDirectoryInfoEnd) 
+            ? _baseStream.ReadByte() ^ _key 
+            : _baseStream.ReadByte();
     }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
         var start = _baseStream.Position;
         var bytesRead = _baseStream.Read(buffer, offset, count);
-        for (var i = start; i < Math.Min(_baseStream.Length, 0x8000) && i - start < bytesRead + offset; i++)
+        for (var i = Math.Max(start, _blocksAndDirectoryInfoOffset); i < _blocksAndDirectoryInfoEnd && i - start < bytesRead + offset; i++)
         {
-            buffer[(int)(i - start) + offset] ^= _key[i % 0x10];
+            buffer[(int)(i - start) + offset] ^= _key;
         }
         return bytesRead;
     }

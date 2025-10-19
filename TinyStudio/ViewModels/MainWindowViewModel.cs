@@ -11,6 +11,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TinyStudio.Games.GF;
+using TinyStudio.Games.PerpetualNovelty;
 using TinyStudio.Models;
 using TinyStudio.Service;
 using TinyStudio.Previewer;
@@ -452,6 +453,11 @@ public partial class MainWindowViewModel : ObservableObject
                 });
             case Game.GF2:
                 return new GfFileSystem((filePath, ex, errorMessage) =>
+                {
+                    LogService.Error(errorMessage);
+                });
+            case Game.PerpetualNovelty:
+                return new PerpetualNoveltyFileSystem((filePath, ex, errorMessage) =>
                 {
                     LogService.Error(errorMessage);
                 });
