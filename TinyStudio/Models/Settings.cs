@@ -12,4 +12,5 @@ public class Settings
     public bool EnableDump { get; set; }
     public bool EnablePreview { get; set; } = true;
     public bool EnableConsole { get; set; } = true;
+    public LogLevel ConsoleLogLevel { get; set; } = LogLevel.Info;
 }

@@ -35,9 +35,6 @@ public partial class MainWindowViewModel : ObservableObject
     private ConsoleLogViewModel? _consoleLogViewModel;
     private readonly PreviewerFactory _previewerFactory;
 
-    [ObservableProperty] 
-    private string _defaultUnityVersion = string.Empty;
-
     [ObservableProperty]
     private Control _previewControl;
 
@@ -78,255 +75,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDumpEnabled;
 
-    [ObservableProperty]
-    private Game _currentGame;
+    #region File
 
-    public bool IsNormalGame => CurrentGame == Game.Normal;
-    public bool IsGfGame => CurrentGame == Game.GF;
-
-    partial void OnCurrentGameChanged(Game value)
-    {
-        OnPropertyChanged(nameof(IsNormalGame));
-        OnPropertyChanged(nameof(IsGfGame));
-    }
-
-    [RelayCommand]
-    private void SetGame(Game game)
-    {
-        if (CurrentGame == game)
-        {
-            return;
-        }
-
-        Reset();
-        CurrentGame = game;
-        _settings.GameType = game;
-        _settingsService.SaveSettings(_settings);
-
-        _fileSystem = CreateFileSystem(game);
-        _assetManager = new AssetManager(_fileSystem, null);
-    
-        LogService.Info($"Game type set to {game}.");
-    }
-
-
-    public IReadOnlyList<LogLevel> AvailableLevels { get; } = Enum.GetValues<LogLevel>();
-    
-    public MainWindowViewModel()
-    {
-        _settingsService = new SettingsService();
-        _settings = _settingsService.LoadSettings();
-        _currentGame = _settings.GameType;
-
-        _fileSystem = CreateFileSystem(CurrentGame);
-        _assetManager = new AssetManager(_fileSystem, null);
-        _previewerFactory = new PreviewerFactory();
-        _previewControl = _previewerFactory.GetPreview(null, _assetManager);
-        _loadedFiles = new ();
-        
-        IsPreviewEnabled = _settings.EnablePreview;
-        IsDumpEnabled = _settings.EnableDump;
-        IsConsoleVisible = _settings.EnableConsole;
-        
-        InitializeTabs();
-        LogService.Info("Application startup complete.");
-        LogService.Debug("This is a debug message.");
-        LogService.Verbose("This is a verbose message.");
-        OnCurrentGameChanged(CurrentGame);
-    }
-
-    private IFileSystem CreateFileSystem(Game game)
-    {
-        switch (game)
-        {
-            case Game.Normal:
-                return new DirectFileSystem((filePath, ex, errorMessage) =>
-                {
-                    LogService.Error(errorMessage);
-                });
-            case Game.GF:
-                return new GfFileSystem((filePath, ex, errorMessage) =>
-                {
-                    LogService.Error(errorMessage);
-                });
-            default:
-                throw new ArgumentOutOfRangeException(nameof(game), game, null);
-        }
-    }
-    
-    partial void OnDefaultUnityVersionChanged(string value)
-    {
-        UnityAsset.NET.Setting.DefaultUnityVerion = value;
-        LogService.Debug($"Default Unity Version set to {value}");
-    }
-
-    partial void OnSelectedAssetChanged(AssetWrapper? value)
-    {
-        /*if (_prevSelectedAsset?.Size >= 0x1000000)
-        {
-            _prevSelectedAsset?.Release();
-        }
-        _prevSelectedAsset = value;*/
-        if (IsDumpEnabled)
-        {
-            _dumpViewModel?.UpdateDumpContent(SelectedAsset);
-        }
-        UpdatePreviewControl();
-    }
-
-    private void UpdatePreviewControl()
-    {
-        if (!IsPreviewEnabled)
-        {
-            PreviewControl = _previewerFactory.GetPreview(null, _assetManager);
-            return;
-        }
-        PreviewControl = _previewerFactory.GetPreview(SelectedAsset, _assetManager);
-    }
-    
-    private void InitializeTabs()
-    {
-        FileTabs.Add(new TabItemViewModel
-        {
-            Header = "Virtual Files",
-            Content = new VirtualFilesView { DataContext = this }
-        });
-
-        FileTabs.Add(new TabItemViewModel
-        {
-            Header = "Scene Hierarchy",
-            Content = new TextBlock { Text = "To be impl", Margin = new Thickness(10) }
-        });
-        
-        FileTabs.Add(new TabItemViewModel
-        {
-            Header = "Asset List",
-            Content = new AssetListView { DataContext = this }
-        });
-        
-        _previewTab = new TabItemViewModel
-        {
-            Header = "Preview",
-            Content = new PreviewView { DataContext = this }
-        };
-        
-        _dumpViewModel = new DumpViewModel();
-
-        _dumpTab = new TabItemViewModel
-        {
-            Header = "Dump",
-            Content = new DumpView { DataContext = _dumpViewModel }
-        };
-
-        _consoleLogViewModel = new ConsoleLogViewModel();
-        _consoleTab = new TabItemViewModel
-        {
-            Header = "Console",
-            Content = new ConsoleLogView { DataContext = _consoleLogViewModel }
-        };
-
-        if (IsPreviewEnabled)
-        {
-            ViewTabs.Add(_previewTab);
-        }
-        if (IsDumpEnabled)
-        {
-            ViewTabs.Add(_dumpTab);
-        }
-        if (IsConsoleVisible)
-        {
-            ViewTabs.Add(_consoleTab);
-        }
-
-        SelectedFileTab = FileTabs.FirstOrDefault();
-        SelectedViewTab = ViewTabs.FirstOrDefault();
-    }
-    
-    [RelayCommand]
-    private void ToggleConsole()
-    {
-        if (_consoleTab == null) return;
-
-        if (ViewTabs.Contains(_consoleTab))
-        {
-            ViewTabs.Remove(_consoleTab);
-            IsConsoleVisible = false;
-        }
-        else
-        {
-            ViewTabs.Add(_consoleTab);
-            SelectedViewTab = _consoleTab;
-            IsConsoleVisible = true;
-        }
-        _settings.EnableConsole = IsConsoleVisible;
-        _settingsService.SaveSettings(_settings);
-    }
-
-    [RelayCommand]
-    private void TogglePreview()
-    {
-        if (_previewTab == null) return;
-
-        if (ViewTabs.Contains(_previewTab))
-        {
-            ViewTabs.Remove(_previewTab);
-            IsPreviewEnabled = false;
-        }
-        else
-        {
-            ViewTabs.Add(_previewTab);
-            SelectedViewTab = _previewTab;
-            IsPreviewEnabled = true;
-        }
-        _settings.EnablePreview = IsPreviewEnabled;
-        _settingsService.SaveSettings(_settings);
-    }
-    
-    [RelayCommand]
-    private void ToggleDump()
-    {
-        
-        if (_dumpTab != null && ViewTabs.Contains(_dumpTab))
-        {
-            if (_dumpTab == null) return;
-            ViewTabs.Remove(_dumpTab);
-            _dumpViewModel?.SetText(string.Empty);
-            _dumpViewModel = null;
-            _dumpTab = null;
-            IsDumpEnabled = false;
-            GC.Collect();
-        }
-        else
-        {
-            _dumpViewModel = new DumpViewModel();
-            _dumpTab = new TabItemViewModel
-            {
-                Header = "Dump",
-                Content = new DumpView { DataContext = _dumpViewModel }
-            };
-            ViewTabs.Add(_dumpTab);
-            SelectedViewTab = _dumpTab;
-            _dumpViewModel.UpdateDumpContent(SelectedAsset);
-            IsDumpEnabled = true;
-        }
-        _settings.EnableDump = IsDumpEnabled;
-        _settingsService.SaveSettings(_settings);
-    }
-
-    [RelayCommand]
-    private void SetConsoleLogLevel(LogLevel level)
-    {
-        if (_consoleLogViewModel != null)
-        {
-            _consoleLogViewModel.MinimumLevel = level;
-        }
-    }
-    
-    public void SetWindow(Window window)
-    {
-        _window = window;
-    }
-    
     [RelayCommand]
     private async Task LoadFile()
     {
@@ -511,6 +261,13 @@ public partial class MainWindowViewModel : ObservableObject
         GC.Collect();
     }
 
+    #endregion
+
+    #region Options
+    
+    [ObservableProperty] 
+    private string _defaultUnityVersion = string.Empty;
+
     [RelayCommand]
     private async Task SetUnityCNKey()
     {
@@ -536,10 +293,260 @@ public partial class MainWindowViewModel : ObservableObject
         }*/
     }
     
+    partial void OnDefaultUnityVersionChanged(string value)
+    {
+        UnityAsset.NET.Setting.DefaultUnityVerion = value;
+        LogService.Debug($"Default Unity Version set to {value}");
+    }
+    
     [RelayCommand]
     private void Setting()
     {
         
+    }
+    
+    public IReadOnlyList<Game> AvailableGames { get; } = Enum.GetValues<Game>();
+
+    [ObservableProperty]
+    private Game _currentGame;
+
+    partial void OnCurrentGameChanged(Game value)
+    {
+        Reset();
+        _settings.GameType = value;
+        _settingsService.SaveSettings(_settings);
+
+        _fileSystem = CreateFileSystem(value);
+        _assetManager = new AssetManager(_fileSystem);
+    
+        LogService.Info($"Game type set to {value}.");
+    }
+    
+    [RelayCommand]
+    private void TogglePreview()
+    {
+        if (_previewTab == null) return;
+
+        if (ViewTabs.Contains(_previewTab))
+        {
+            ViewTabs.Remove(_previewTab);
+            IsPreviewEnabled = false;
+        }
+        else
+        {
+            ViewTabs.Add(_previewTab);
+            SelectedViewTab = _previewTab;
+            IsPreviewEnabled = true;
+        }
+        _settings.EnablePreview = IsPreviewEnabled;
+        _settingsService.SaveSettings(_settings);
+    }
+    
+    [RelayCommand]
+    private void ToggleDump()
+    {
+        
+        if (_dumpTab != null && ViewTabs.Contains(_dumpTab))
+        {
+            if (_dumpTab == null) return;
+            ViewTabs.Remove(_dumpTab);
+            _dumpViewModel?.SetText(string.Empty);
+            _dumpViewModel = null;
+            _dumpTab = null;
+            IsDumpEnabled = false;
+            GC.Collect();
+        }
+        else
+        {
+            _dumpViewModel = new DumpViewModel();
+            _dumpTab = new TabItemViewModel
+            {
+                Header = "Dump",
+                Content = new DumpView { DataContext = _dumpViewModel }
+            };
+            ViewTabs.Add(_dumpTab);
+            SelectedViewTab = _dumpTab;
+            _dumpViewModel.UpdateDumpContent(SelectedAsset);
+            IsDumpEnabled = true;
+        }
+        _settings.EnableDump = IsDumpEnabled;
+        _settingsService.SaveSettings(_settings);
+    }
+
+    #endregion
+
+    #region Debug
+
+    public IReadOnlyList<LogLevel> AvailableLevels { get; } = Enum.GetValues<LogLevel>();
+    
+    [ObservableProperty]
+    private LogLevel _selectedLogLevel;
+    
+    [RelayCommand]
+    private void ToggleConsole()
+    {
+        if (_consoleTab == null) return;
+
+        if (ViewTabs.Contains(_consoleTab))
+        {
+            ViewTabs.Remove(_consoleTab);
+            IsConsoleVisible = false;
+        }
+        else
+        {
+            ViewTabs.Add(_consoleTab);
+            SelectedViewTab = _consoleTab;
+            IsConsoleVisible = true;
+        }
+        _settings.EnableConsole = IsConsoleVisible;
+        _settingsService.SaveSettings(_settings);
+    }
+
+    partial void OnSelectedLogLevelChanged(LogLevel value)
+    {
+        if (_consoleLogViewModel != null)
+        {
+            _consoleLogViewModel.MinimumLevel = value;
+        }
+        _settings.ConsoleLogLevel = value;
+        _settingsService.SaveSettings(_settings);
+    }
+
+    #endregion
+    
+    public MainWindowViewModel()
+    {
+        _settingsService = new SettingsService();
+        _settings = _settingsService.LoadSettings();
+        _currentGame = _settings.GameType;
+
+        _fileSystem = CreateFileSystem(CurrentGame);
+        _assetManager = new AssetManager(_fileSystem);
+        _previewerFactory = new PreviewerFactory();
+        _previewControl = _previewerFactory.GetPreview(null, _assetManager);
+        _loadedFiles = new ();
+        
+        IsPreviewEnabled = _settings.EnablePreview;
+        IsDumpEnabled = _settings.EnableDump;
+        IsConsoleVisible = _settings.EnableConsole;
+        
+        InitializeTabs();
+        if (_consoleLogViewModel != null)
+        {
+            _consoleLogViewModel.MinimumLevel = _settings.ConsoleLogLevel;
+            SelectedLogLevel = _consoleLogViewModel.MinimumLevel;
+        }
+        LogService.Info("Application startup complete.");
+        LogService.Debug("This is a debug message.");
+        LogService.Verbose("This is a verbose message.");
+    }
+
+    private IFileSystem CreateFileSystem(Game game)
+    {
+        switch (game)
+        {
+            case Game.Normal:
+                return new DirectFileSystem((filePath, ex, errorMessage) =>
+                {
+                    LogService.Error(errorMessage);
+                });
+            case Game.GF2:
+                return new GfFileSystem((filePath, ex, errorMessage) =>
+                {
+                    LogService.Error(errorMessage);
+                });
+            default:
+                throw new ArgumentOutOfRangeException(nameof(game), game, null);
+        }
+    }
+    
+    
+
+    partial void OnSelectedAssetChanged(AssetWrapper? value)
+    {
+        /*if (_prevSelectedAsset?.Size >= 0x1000000)
+        {
+            _prevSelectedAsset?.Release();
+        }
+        _prevSelectedAsset = value;*/
+        if (IsDumpEnabled)
+        {
+            _dumpViewModel?.UpdateDumpContent(SelectedAsset);
+        }
+        UpdatePreviewControl();
+    }
+
+    private void UpdatePreviewControl()
+    {
+        if (!IsPreviewEnabled)
+        {
+            PreviewControl = _previewerFactory.GetPreview(null, _assetManager);
+            return;
+        }
+        PreviewControl = _previewerFactory.GetPreview(SelectedAsset, _assetManager);
+    }
+    
+    private void InitializeTabs()
+    {
+        FileTabs.Add(new TabItemViewModel
+        {
+            Header = "Virtual Files",
+            Content = new VirtualFilesView { DataContext = this }
+        });
+
+        FileTabs.Add(new TabItemViewModel
+        {
+            Header = "Scene Hierarchy",
+            Content = new TextBlock { Text = "To be impl", Margin = new Thickness(10) }
+        });
+        
+        FileTabs.Add(new TabItemViewModel
+        {
+            Header = "Asset List",
+            Content = new AssetListView { DataContext = this }
+        });
+        
+        _previewTab = new TabItemViewModel
+        {
+            Header = "Preview",
+            Content = new PreviewView { DataContext = this }
+        };
+        
+        _dumpViewModel = new DumpViewModel();
+
+        _dumpTab = new TabItemViewModel
+        {
+            Header = "Dump",
+            Content = new DumpView { DataContext = _dumpViewModel }
+        };
+
+        _consoleLogViewModel = new ConsoleLogViewModel();
+        _consoleTab = new TabItemViewModel
+        {
+            Header = "Console",
+            Content = new ConsoleLogView { DataContext = _consoleLogViewModel }
+        };
+
+        if (IsPreviewEnabled)
+        {
+            ViewTabs.Add(_previewTab);
+        }
+        if (IsDumpEnabled)
+        {
+            ViewTabs.Add(_dumpTab);
+        }
+        if (IsConsoleVisible)
+        {
+            ViewTabs.Add(_consoleTab);
+        }
+
+        SelectedFileTab = FileTabs.FirstOrDefault();
+        SelectedViewTab = ViewTabs.FirstOrDefault();
+    }
+    
+    public void SetWindow(Window window)
+    {
+        _window = window;
     }
     
     [RelayCommand]

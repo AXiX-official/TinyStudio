@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:TinyStudio.ViewModels"
-        xmlns:models="using:TinyStudio.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -14,15 +13,15 @@
     <DockPanel>
         
         <Menu DockPanel.Dock="Top">
-            <MenuItem Header="File">
+            <MenuItem Header="_File">
                 <MenuItem Header="Load File" Command="{Binding LoadFileCommand}"/>
                 <MenuItem Header="Load Folder" Command="{Binding LoadFolderCommand}"/>
                 <MenuItem Header="Load Files From FileList" Command="{Binding LoadFileListCommand}"/>
                 <Separator />
-                <MenuItem Header="Reset" Command="{Binding ResetCommand}"/>
+                <MenuItem Header="_Reset" Command="{Binding ResetCommand}"/>
             </MenuItem>
             
-            <MenuItem Header="Options">
+            <MenuItem Header="_Options">
                 <MenuItem Header="Set UnityCN Key" Command="{Binding SetUnityCNKeyCommand}"/>
                 <MenuItem StaysOpenOnClick="True" Focusable="False">
                     <MenuItem.Header>
@@ -38,32 +37,42 @@
                     </MenuItem.Header>
                 </MenuItem>
                 <Separator />
-                <MenuItem Header="Setting" Command="{Binding SettingCommand}"/>
+                <MenuItem Header="Settings" Command="{Binding SettingCommand}"/>
                 <Separator />
-                <MenuItem Header="Specify Game">
-                    <MenuItem Header="Normal" IsChecked="{Binding IsNormalGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.Normal}"/>
-                    <MenuItem Header="GF" IsChecked="{Binding IsGfGame}" Command="{Binding SetGameCommand}" CommandParameter="{x:Static models:Game.GF}"/>
+                <MenuItem StaysOpenOnClick="True" Focusable="False">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Specify Game: " VerticalAlignment="Center"/>
+                            <ComboBox ItemsSource="{Binding AvailableGames}"
+                                      SelectedItem="{Binding CurrentGame}"
+                                      AutoScrollToSelectedItem="True"
+                                      Width="100"
+                                      Margin="5,0"/>
+                        </StackPanel>
+                    </MenuItem.Header>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Enable Preview" ToggleType="CheckBox" IsChecked="{Binding IsPreviewEnabled}" Command="{Binding TogglePreviewCommand}"/>
                 <MenuItem Header="Enable Dump" ToggleType="CheckBox" IsChecked="{Binding IsDumpEnabled}" Command="{Binding ToggleDumpCommand}"/>
             </MenuItem>
             
-            <MenuItem Header="Debug">
+            <MenuItem Header="_Debug">
                 <MenuItem Header="Enable Console" ToggleType="CheckBox" IsChecked="{Binding IsConsoleVisible}" Command="{Binding ToggleConsoleCommand}"/>
                 <Separator />
-                <MenuItem Header="Console Log Level">
-                    <ItemsControl ItemsSource="{Binding AvailableLevels}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <MenuItem Header="{Binding}" Command="{Binding $parent[Window].DataContext.SetConsoleLogLevelCommand}" CommandParameter="{Binding}"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <MenuItem StaysOpenOnClick="True" Focusable="False">
+                    <MenuItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Console Log Level: " VerticalAlignment="Center"/>
+                            <ComboBox ItemsSource="{Binding AvailableLevels}"
+                                      SelectedItem="{Binding SelectedLogLevel}"
+                                      Width="100"
+                                      Margin="5,0"/>
+                        </StackPanel>
+                    </MenuItem.Header>
                 </MenuItem>
             </MenuItem>
             
-            <MenuItem Header="About" Command="{Binding AboutCommand}"/>
+            <MenuItem Header="_About" Command="{Binding AboutCommand}"/>
         </Menu>
         
         <Grid>

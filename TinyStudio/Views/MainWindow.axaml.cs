@@ -35,7 +35,7 @@ public partial class MainWindow : Window
                 
                 if (File.Exists(localPath))
                 {
-                    return new[] { localPath };
+                    return [localPath];
                 }
                 if (Directory.Exists(localPath))
                 {
