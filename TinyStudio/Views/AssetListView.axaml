@@ -13,27 +13,36 @@
         </Grid>
         <DataGrid ItemsSource="{Binding LoadedAssets}"
                   SelectedItem="{Binding SelectedAsset}"
-                  FontSize="12"
                   Margin="5"
+                  RowHeight="14"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   SelectionMode="Single"
                   CanUserResizeColumns="True">
+            <DataGrid.Styles>
+                <Style Selector="DataGridCell">
+                    <Setter Property="Padding" Value="2,2"/>
+                </Style>
+            </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name"
                                     Binding="{Binding Name}"
+                                    FontSize="12"
                                     Width="200"
                                     MinWidth="100"/>
                 <DataGridTextColumn Header="Type"
                                     Binding="{Binding Type}"
+                                    FontSize="12"
                                     Width="120"
                                     MinWidth="60"/>
                 <DataGridTextColumn Header="PathID"
                                     Binding="{Binding PathId}"
+                                    FontSize="12"
                                     Width="120"
                                     MinWidth="50"/>
                 <DataGridTextColumn Header="Size"
                                     Binding="{Binding Size}"
+                                    FontSize="12"
                                     Width="100"
                                     MinWidth="50"/>
             </DataGrid.Columns>

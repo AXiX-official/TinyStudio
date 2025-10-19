@@ -10,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SixLabors.ImageSharp;
 using TinyStudio.Games.GF;
 using TinyStudio.Games.PerpetualNovelty;
 using TinyStudio.Models;
@@ -17,8 +18,10 @@ using TinyStudio.Service;
 using TinyStudio.Previewer;
 using TinyStudio.Views;
 using UnityAsset.NET;
+using UnityAsset.NET.AssetHelper;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
+using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
 
 namespace TinyStudio.ViewModels;
 
@@ -559,5 +562,61 @@ public partial class MainWindowViewModel : ObservableObject
     private void About()
     {
         
+    }
+
+    [RelayCommand]
+    private async Task SaveImage()
+    {
+        if (_window == null)
+        {
+            LogService.Error("Window reference not set!");
+            return;
+        }
+        
+        var fileType = new FilePickerFileType("Image files")
+        {
+            Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif" ],
+            AppleUniformTypeIdentifiers = [ "public.image" ],
+            MimeTypes = [ "image/*" ]
+        };
+        
+        var file = await _window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Image",
+            SuggestedFileName = SelectedAsset!.Name,
+            DefaultExtension = "png",
+            ShowOverwritePrompt = true,
+            FileTypeChoices = [ fileType ]
+        });
+        
+        if (file != null)
+        {
+            try
+            {
+                using var image = await Task.Run(
+                    () => {
+                        return SelectedAsset.Value switch
+                        {
+                            ITexture2D texture2D => _assetManager.DecodeTexture2DToImage(texture2D),
+                            ISprite sprite => _assetManager.DecodeSpriteToImage(sprite),
+                            _ => throw new Exception("Unsupported asset type for image saving.")
+                        };
+                        
+                    });
+                await using var stream = await file.OpenWriteAsync();
+                await image.SaveAsPngAsync(stream);
+            
+                StatusText = $"Image saved successfully: {file.Name}";
+                LogService.Info($"Image saved: {file.Path.LocalPath}");
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"Failed to save image: {ex.Message}");
+            }
+        }
+        else
+        {
+            LogService.Info("Image save canceled.");
+        }
     }
 }

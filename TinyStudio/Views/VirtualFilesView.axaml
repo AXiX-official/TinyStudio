@@ -8,20 +8,29 @@
              x:DataType="vm:MainWindowViewModel">
     <DockPanel>
         <DataGrid ItemsSource="{Binding LoadedFiles}"
+                  FontSize="10"
                   Margin="5"
+                  RowHeight="14"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   SelectionMode="Single"
                   CanUserResizeColumns="True">
+            <DataGrid.Styles>
+                <Style Selector="DataGridCell">
+                    <Setter Property="Padding" Value="2,2"/>
+                </Style>
+            </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTextColumn 
                     Header="FileName" 
                     Binding="{Binding Name}" 
+                    FontSize="12"
                     Width="300"
                     MinWidth="150"/>
                 <DataGridTextColumn 
                     Header="Path"
                     Binding="{Binding Path}" 
+                    FontSize="12"
                     Width="150"
                     MinWidth="100"/>
             </DataGrid.Columns>
