@@ -13,6 +13,7 @@ using TinyStudio.Service;
 
 public partial class App : Application
 {
+    public static string AppName = "TinyStudio";
     public static Settings Settings { get; private set; } = new();
     public static SettingsService SettingsService { get; private set; } = new();
     

@@ -245,6 +245,14 @@ public partial class MainWindowViewModel : ObservableObject
             LogService.Info(StatusText);
            
             ProgressValue = 100;
+
+            var unityVersion = _assetManager.Version;
+            LogService.Info($"Unity version: {unityVersion}");
+            var platform = _assetManager.BuildTarget;
+            LogService.Info($"Build target: {platform}");
+            
+            if (_window != null) 
+                _window.Title = $"{App.AppName} {platform} - {unityVersion}";
         }
         catch (Exception ex)
         {
@@ -257,6 +265,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void Reset()
     {
+        if (_window != null)
+            _window.Title = App.AppName;
         LoadedAssets.Clear();
         _assetManager.Clear();
         _fileSystem.Clear();
@@ -500,7 +510,7 @@ public partial class MainWindowViewModel : ObservableObject
         FileTabs.Add(new TabItemViewModel
         {
             Header = "Virtual Files",
-            Content = new VirtualFilesView { DataContext = this }
+            Content = new VirtualFilesView { DataContext = this },
         });
 
         FileTabs.Add(new TabItemViewModel
