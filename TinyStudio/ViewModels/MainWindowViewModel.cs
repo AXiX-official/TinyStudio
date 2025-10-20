@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -57,8 +59,17 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<IVirtualFile> _loadedFiles;
     
+    public ObservableCollection<AssetWrapper> LoadedAssets { get; } = new();
+    
+    public DataGridCollectionView FilteredAssets { get; }
+    
+    public ObservableCollection<SelectableType> AssetTypes { get; } = new();
+
     [ObservableProperty]
-    private ObservableCollection<AssetWrapper> _loadedAssets = new();
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private bool _useRegex;
     
     [ObservableProperty]
     private AssetWrapper? _selectedAsset;
@@ -240,7 +251,30 @@ public partial class MainWindowViewModel : ObservableObject
                 _assetManager.LoadedAssets
                 .Select(asset => new AssetWrapper(asset))
                 .ToList());
-            LoadedAssets = new ObservableCollection<AssetWrapper>(assets);
+            
+            LoadedAssets.Clear();
+            foreach (var asset in assets)
+            {
+                LoadedAssets.Add(asset);
+            }
+
+            foreach (var selectableType in AssetTypes)
+            {
+                selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
+            }
+            AssetTypes.Clear();
+            
+            var all = new SelectableType("All", true);
+            all.PropertyChanged += OnSelectableTypePropertyChanged;
+            AssetTypes.Add(all);
+            
+            var distinctTypes = LoadedAssets.Select(a => a.Type).Distinct().OrderBy(t => t);
+            foreach (var typeName in distinctTypes)
+            {
+                var selectableType = new SelectableType(typeName, true);
+                selectableType.PropertyChanged += OnSelectableTypePropertyChanged;
+                AssetTypes.Add(selectableType);
+            }
             StatusText = $"Loaded {assets.Count} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.";
             LogService.Info(StatusText);
            
@@ -268,6 +302,12 @@ public partial class MainWindowViewModel : ObservableObject
         if (_window != null)
             _window.Title = App.AppName;
         LoadedAssets.Clear();
+        foreach (var selectableType in AssetTypes)
+        {
+            selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
+        }
+        AssetTypes.Clear();
+        SearchText = string.Empty;
         _assetManager.Clear();
         _fileSystem.Clear();
         UnityAsset.NET.TypeTreeHelper.TypeTreeCache.CleanCache();
@@ -428,8 +468,108 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
     
+    private bool _isUpdatingAssetTypes; // Flag to prevent re-entrancy
+
+    private void OnSelectableTypePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SelectableType.IsSelected) || _isUpdatingAssetTypes)
+        {
+            return;
+        }
+
+        try
+        {
+            _isUpdatingAssetTypes = true;
+            if (sender is SelectableType { TypeName: "All" } allType)
+            {
+                // "All" was changed, update all others to match
+                foreach (var type in AssetTypes.Where(t => t != allType))
+                {
+                    type.IsSelected = allType.IsSelected;
+                }
+            }
+            else
+            {
+                // Another type was changed
+                var all = AssetTypes.FirstOrDefault(t => t.TypeName == "All");
+                if (all != null)
+                {
+                    // If any item is unchecked, uncheck "All"
+                    if (AssetTypes.Skip(1).Any(t => !t.IsSelected))
+                    {
+                        all.IsSelected = false;
+                    }
+                    // If all other items are checked, check "All"
+                    else if (AssetTypes.Skip(1).All(t => t.IsSelected))
+                    {
+                        all.IsSelected = true;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingAssetTypes = false;
+            FilteredAssets.Refresh();
+        }
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        FilteredAssets.Refresh();
+    }
+
+    partial void OnUseRegexChanged(bool value)
+    {
+        FilteredAssets.Refresh();
+    }
+
+    private bool FilterAssets(object item)
+    {
+        if (item is not AssetWrapper asset)
+        {
+            return false;
+        }
+
+        // Type filter
+        var selectAll = AssetTypes.FirstOrDefault(t => t.TypeName == "All")?.IsSelected ?? true;
+        if (!selectAll)
+        {
+            var selectedTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
+            if (selectedTypes.Any() && !selectedTypes.Contains(asset.Type))
+            {
+                return false;
+            }
+        }
+
+        // Search text filter
+        if (string.IsNullOrEmpty(SearchText))
+        {
+            return true;
+        }
+
+        try
+        {
+            var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
+            var regex = new Regex(pattern, RegexOptions.IgnoreCase);
+
+            return regex.IsMatch(asset.Name) ||
+                   regex.IsMatch(asset.Type) ||
+                   regex.IsMatch(asset.PathId.ToString()) ||
+                   regex.IsMatch(asset.Size.ToString());
+        }
+        catch (RegexParseException)
+        {
+            // If user enters invalid regex, treat as no match
+            return false;
+        }
+    }
+
     public MainWindowViewModel()
     {
+        FilteredAssets = new DataGridCollectionView(LoadedAssets);
+        FilteredAssets.Filter = FilterAssets;
+        
         _settingsService = new SettingsService();
         _settings = _settingsService.LoadSettings();
         _currentGame = _settings.GameType;

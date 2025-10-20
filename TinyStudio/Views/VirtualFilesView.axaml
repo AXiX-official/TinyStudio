@@ -25,13 +25,13 @@
                     Header="FileName" 
                     Binding="{Binding Name}" 
                     FontSize="12"
-                    Width="300"
+                    Width="200"
                     MinWidth="150"/>
                 <DataGridTextColumn 
                     Header="Path"
                     Binding="{Binding Path}" 
                     FontSize="12"
-                    Width="150"
+                    Width="400"
                     MinWidth="100"/>
             </DataGrid.Columns>
         </DataGrid>

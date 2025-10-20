@@ -3,15 +3,35 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:TinyStudio.ViewModels"
+             xmlns:models="clr-namespace:TinyStudio.Models"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="TinyStudio.Views.AssetListView"
              x:DataType="vm:MainWindowViewModel">
     <DockPanel>
-        <Grid DockPanel.Dock="Top" Margin="5" ColumnDefinitions="*,Auto">
-            <TextBox Watermark="Search..." Grid.Column="0" Margin="0,0,5,0"/>
-            <Button Content="Search" Grid.Column="1" HorizontalAlignment="Left"/>
+        <Grid DockPanel.Dock="Top" Margin="5" ColumnDefinitions="*,Auto,Auto">
+            <TextBox Watermark="Search... (Press Enter to apply)" Grid.Column="0"
+                     Text="{Binding SearchText, Mode=OneWay}"
+                     KeyDown="SearchTextBox_KeyDown"
+                     Margin="0,0,5,0"/>
+            <CheckBox Grid.Column="1" Content="Regex" 
+                      IsChecked="{Binding UseRegex, Mode=TwoWay}" 
+                      VerticalAlignment="Center" Margin="0,0,5,0" ToolTip.Tip="Use Regular Expression for search"/>
+            <Button Grid.Column="2" Content="Filter Types" Margin="0,0,5,0" MinWidth="120">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft">
+                        <ListBox ItemsSource="{Binding AssetTypes}" MaxHeight="400">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:SelectableType">
+                                    <CheckBox Content="{Binding TypeName}" 
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
-        <DataGrid ItemsSource="{Binding LoadedAssets}"
+        <DataGrid ItemsSource="{Binding FilteredAssets}"
                   SelectedItem="{Binding SelectedAsset}"
                   Margin="5"
                   RowHeight="14"
@@ -25,26 +45,26 @@
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Name"
-                                    Binding="{Binding Name}"
-                                    FontSize="12"
-                                    Width="200"
-                                    MinWidth="100"/>
-                <DataGridTextColumn Header="Type"
-                                    Binding="{Binding Type}"
-                                    FontSize="12"
-                                    Width="120"
-                                    MinWidth="60"/>
-                <DataGridTextColumn Header="PathID"
-                                    Binding="{Binding PathId}"
-                                    FontSize="12"
-                                    Width="120"
-                                    MinWidth="50"/>
-                <DataGridTextColumn Header="Size"
-                                    Binding="{Binding Size}"
-                                    FontSize="12"
-                                    Width="100"
-                                    MinWidth="50"/>
+                <DataGridTemplateColumn Header="Name" Width="200" MinWidth="100">
+                    <DataTemplate x:DataType="models:AssetWrapper">
+                        <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Type" Width="120" MinWidth="60">
+                    <DataTemplate x:DataType="models:AssetWrapper">
+                        <TextBlock Text="{Binding Type}" FontSize="12" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="PathID" Width="120" MinWidth="50">
+                    <DataTemplate x:DataType="models:AssetWrapper">
+                        <TextBlock Text="{Binding PathId}" FontSize="12" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Size" Width="100" MinWidth="50">
+                    <DataTemplate x:DataType="models:AssetWrapper">
+                        <TextBlock Text="{Binding Size}" FontSize="12" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

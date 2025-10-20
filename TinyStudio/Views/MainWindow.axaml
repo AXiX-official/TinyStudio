@@ -31,8 +31,7 @@
                                      Width="100" 
                                      Text="{Binding DefaultUnityVersion, UpdateSourceTrigger=PropertyChanged}"
                                      Margin="5,0"
-                                     Padding="2"
-                                     Background="White"/>
+                                     Padding="2"/>
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
@@ -87,12 +86,17 @@
             </Grid.ColumnDefinitions>
             
             <TabControl Grid.Row="0" Grid.Column="0" ItemsSource="{Binding FileTabs}" SelectedItem="{Binding SelectedFileTab}">
+                <TabControl.Styles>
+                    <Style Selector="TabItem">
+                        <Setter Property="Height" Value="16"/>
+                        <Setter Property="Padding" Value="4,2"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    </Style>
+                </TabControl.Styles>
                 <TabControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TabItemViewModel">
                         <TextBlock FontSize="12" 
-                                   Text="{Binding Header}"
-                                   Height="{Binding Height}"
-                                   Padding="{Binding Padding}"/>
+                                   Text="{Binding Header}"/>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
                 <TabControl.ContentTemplate>
