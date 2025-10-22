@@ -45,22 +45,22 @@
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Name" Width="200" MinWidth="100">
+                <DataGridTemplateColumn Header="Name" Width="200" MinWidth="100" SortMemberPath="Name">
                     <DataTemplate x:DataType="models:AssetWrapper">
                         <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Type" Width="120" MinWidth="60">
+                <DataGridTemplateColumn Header="Type" Width="120" MinWidth="60" SortMemberPath="Type">
                     <DataTemplate x:DataType="models:AssetWrapper">
                         <TextBlock Text="{Binding Type}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="PathID" Width="120" MinWidth="50">
+                <DataGridTemplateColumn Header="PathID" Width="120" MinWidth="50" SortMemberPath="PathId">
                     <DataTemplate x:DataType="models:AssetWrapper">
                         <TextBlock Text="{Binding PathId}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Size" Width="100" MinWidth="50">
+                <DataGridTemplateColumn Header="Size" Width="100" MinWidth="50" SortMemberPath="Size">
                     <DataTemplate x:DataType="models:AssetWrapper">
                         <TextBlock Text="{Binding Size}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
