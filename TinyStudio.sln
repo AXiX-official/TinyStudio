@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyStudio", "TinyStudio\Ti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET", "UnityAsset.NET\UnityAsset.NET\UnityAsset.NET.csproj", "{23EAB836-5277-4B22-8246-8F069255827E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET.TypeTreeHelper", "UnityAsset.NET\UnityAsset.NET.TypeTreeHelper\UnityAsset.NET.TypeTreeHelper.csproj", "{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{23EAB836-5277-4B22-8246-8F069255827E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23EAB836-5277-4B22-8246-8F069255827E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23EAB836-5277-4B22-8246-8F069255827E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

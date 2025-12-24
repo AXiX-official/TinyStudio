@@ -1,5 +1,5 @@
 ﻿using UnityAsset.NET;
-using UnityAsset.NET.TypeTreeHelper.PreDefined;
+using UnityAsset.NET.TypeTree.PreDefined;
 
 namespace TinyStudio.Models;
 
@@ -7,7 +7,7 @@ public class AssetWrapper
 {
     private readonly Asset m_Asset;
     
-    public IAsset Value => m_Asset.Value;
+    public IUnityAsset Value => m_Asset.Value;
     
     public string Type => m_Asset.Type;
 

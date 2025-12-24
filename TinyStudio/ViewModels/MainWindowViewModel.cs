@@ -23,7 +23,7 @@ using UnityAsset.NET;
 using UnityAsset.NET.AssetHelper;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
-using UnityAsset.NET.TypeTreeHelper.PreDefined.Classes;
+using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
 
 namespace TinyStudio.ViewModels;
 
@@ -310,8 +310,8 @@ public partial class MainWindowViewModel : ObservableObject
         SearchText = string.Empty;
         _assetManager.Clear();
         _fileSystem.Clear();
-        UnityAsset.NET.TypeTreeHelper.TypeTreeCache.CleanCache();
-        UnityAsset.NET.TypeTreeHelper.AssemblyManager.CleanCache();
+        UnityAsset.NET.TypeTree.TypeTreeCache.CleanCache();
+        UnityAsset.NET.TypeTree.AssemblyManager.CleanCache();
         GC.Collect();
     }
 
