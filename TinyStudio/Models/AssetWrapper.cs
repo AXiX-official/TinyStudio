@@ -1,9 +1,10 @@
-﻿using UnityAsset.NET;
+﻿    using System.ComponentModel;
+    using UnityAsset.NET;
 using UnityAsset.NET.TypeTree.PreDefined;
 
 namespace TinyStudio.Models;
 
-public class AssetWrapper
+public class AssetWrapper : INotifyPropertyChanged
 {
     private readonly Asset m_Asset;
     
@@ -42,4 +43,9 @@ public class AssetWrapper
     {
         m_Asset.Release();
     }
+    
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public void OnPropertyChanged(string propertyName)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

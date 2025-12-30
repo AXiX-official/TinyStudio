@@ -632,6 +632,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _dumpViewModel?.UpdateDumpContent(SelectedAsset);
         }
+        SelectedAsset?.OnPropertyChanged(nameof(AssetWrapper.Name));
         UpdatePreviewControl();
     }
 
