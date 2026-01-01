@@ -12,21 +12,7 @@ public class AssetWrapper : INotifyPropertyChanged
     
     public string Type => m_Asset.Type;
 
-    public string Name
-    {
-        get
-        {
-            if (!string.IsNullOrEmpty(m_Asset.Name))
-            {
-                return m_Asset.Name;
-            }
-
-            if (m_Asset.Value is INamedAsset namedAsset)
-                return namedAsset.m_Name;
-            
-            return string.Empty;
-        }
-    }
+    public string Name => m_Asset.Name;
 
     public long Size => m_Asset.Info.ByteSize;
 

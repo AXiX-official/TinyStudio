@@ -59,9 +59,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<IVirtualFile> _loadedFiles;
     
-    public ObservableCollection<AssetWrapper> LoadedAssets { get; } = new();
-    
-    public DataGridCollectionView FilteredAssets { get; }
+    [ObservableProperty]
+    private DataGridCollectionView _filteredAssets;
     
     public ObservableCollection<SelectableType> AssetTypes { get; } = new();
 
@@ -252,11 +251,7 @@ public partial class MainWindowViewModel : ObservableObject
                 .Select(asset => new AssetWrapper(asset))
                 .ToList());
             
-            LoadedAssets.Clear();
-            foreach (var asset in assets)
-            {
-                LoadedAssets.Add(asset);
-            }
+            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets));
 
             foreach (var selectableType in AssetTypes)
             {
@@ -268,7 +263,7 @@ public partial class MainWindowViewModel : ObservableObject
             all.PropertyChanged += OnSelectableTypePropertyChanged;
             AssetTypes.Add(all);
             
-            var distinctTypes = LoadedAssets.Select(a => a.Type).Distinct().OrderBy(t => t);
+            var distinctTypes = assets.Select(a => a.Type).Distinct().OrderBy(t => t);
             foreach (var typeName in distinctTypes)
             {
                 var selectableType = new SelectableType(typeName, true);
@@ -301,7 +296,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_window != null)
             _window.Title = App.AppName;
-        LoadedAssets.Clear();
+        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>());
         foreach (var selectableType in AssetTypes)
         {
             selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
@@ -567,7 +562,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
-        FilteredAssets = new DataGridCollectionView(LoadedAssets);
+        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>());
         FilteredAssets.Filter = FilterAssets;
         
         _settingsService = new SettingsService();
