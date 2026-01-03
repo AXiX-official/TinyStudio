@@ -250,7 +250,10 @@ public partial class MainWindowViewModel : ObservableObject
                 .Select(asset => new AssetWrapper(asset))
                 .ToList());
             
-            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets));
+            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets))
+            {
+                Filter = FilterAssets
+            };
 
             foreach (var selectableType in AssetTypes)
             {
@@ -295,7 +298,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_window != null)
             _window.Title = App.AppName;
-        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>());
+        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
+        {
+            Filter = FilterAssets
+        };
         foreach (var selectableType in AssetTypes)
         {
             selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
@@ -561,8 +567,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
-        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>());
-        FilteredAssets.Filter = FilterAssets;
+        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
+        {
+            Filter = FilterAssets
+        };
         
         _settingsService = new SettingsService();
         _settings = _settingsService.LoadSettings();
