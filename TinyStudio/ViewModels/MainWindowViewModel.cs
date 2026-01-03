@@ -39,7 +39,6 @@ public partial class MainWindowViewModel : ObservableObject
     private DumpViewModel? _dumpViewModel;
     private TabItemViewModel? _consoleTab;
     private ConsoleLogViewModel? _consoleLogViewModel;
-    private readonly PreviewerFactory _previewerFactory;
 
     [ObservableProperty]
     private Control _previewControl;
@@ -571,8 +570,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         _fileSystem = CreateFileSystem(CurrentGame);
         _assetManager = new AssetManager(_fileSystem);
-        _previewerFactory = new PreviewerFactory();
-        _previewControl = _previewerFactory.GetPreview(null, _assetManager);
+        _previewControl = PreviewerFactory.GetPreview(null, _assetManager);
         _loadedFiles = new ();
         
         IsPreviewEnabled = _settings.EnablePreview;
@@ -635,10 +633,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (!IsPreviewEnabled)
         {
-            PreviewControl = _previewerFactory.GetPreview(null, _assetManager);
+            PreviewControl = PreviewerFactory.GetPreview(null, _assetManager);
             return;
         }
-        PreviewControl = _previewerFactory.GetPreview(SelectedAsset, _assetManager);
+        PreviewControl = PreviewerFactory.GetPreview(SelectedAsset, _assetManager);
     }
     
     private void InitializeTabs()
@@ -763,6 +761,61 @@ public partial class MainWindowViewModel : ObservableObject
         else
         {
             LogService.Info("Image save canceled.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportObj()
+    {
+        if (_window == null)
+        {
+            LogService.Error("Window reference not set!");
+            return;
+        }
+        
+        var fileType = new FilePickerFileType("Mesh files")
+        {
+            Patterns = [ "*.obj" ],
+            MimeTypes = [ "model/obj", "application/obj" ]
+        };
+        
+        var file = await _window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Obj",
+            SuggestedFileName = SelectedAsset!.Name,
+            DefaultExtension = "obj",
+            ShowOverwritePrompt = true,
+            FileTypeChoices = [ fileType ]
+        });
+        
+        if (file != null)
+        {
+            try
+            {
+                var meshPreview = PreviewControl as MeshPreview;
+                if (meshPreview == null)
+                    throw new Exception("Current preview is not a mesh.");
+                var processedMesh = meshPreview.MeshData;
+                if (processedMesh == null)
+                    throw new Exception("No mesh data available for export.");
+                
+                string fullPath = file.Path.LocalPath;
+                string directoryName = Path.GetDirectoryName(fullPath)!;
+                string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
+                
+                MeshHelper.ExportToObj(processedMesh, directoryName, fileNameWithoutExtension);
+            
+                StatusText = $"obj exported successfully: {file.Name}";
+                LogService.Info($"obj exported: {file.Path.LocalPath}");
+            }
+            catch (Exception ex)
+            {
+                LogService.Error($"Failed to export obj: {ex.Message}");
+            }
+        }
+        else
+        {
+            LogService.Info("Obj export canceled.");
         }
     }
 }

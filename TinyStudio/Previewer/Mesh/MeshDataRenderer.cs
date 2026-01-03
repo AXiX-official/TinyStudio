@@ -2,24 +2,25 @@ using System;
 using System.Numerics;
 using Avalonia;
 using Avalonia.OpenGL;
-using UnityAsset.NET.AssetHelper;
 using static Avalonia.OpenGL.GlConsts;
 
 namespace TinyStudio.Previewer.Mesh;
 
 public sealed unsafe class MeshDataRenderer : IDisposable
 {
+    private const int GL_DYNAMIC_DRAW = 0x88E8;
     private readonly GlInterface _gl;
     private MeshData? _mesh;
 
-    public MeshData Mesh
+    public MeshData? Mesh
     {
         set 
         {
             if (_mesh != value)
             {
                 _mesh = value;
-                UploadMesh(value);
+                if (value != null)
+                    UploadMesh(value);
             }
         }
     }
@@ -49,7 +50,7 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         _gl.DepthFunc(GL_LESS);
         _gl.DepthMask(1);
         
-        Console.WriteLine($"Renderer: {_gl.GetString(GL_RENDERER)} Version: {_gl.GetString(GL_VERSION)}");
+        //Console.WriteLine($"Renderer: {_gl.GetString(GL_RENDERER)} Version: {_gl.GetString(GL_VERSION)}");
         
         _vao = _gl.GenVertexArray();
         _vbo = _gl.GenBuffer();
@@ -143,7 +144,7 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                 GL_ARRAY_BUFFER,
                 mesh.VertexBuffer.Data.Length,
                 (IntPtr)v,
-                GL_STATIC_DRAW);
+                GL_DYNAMIC_DRAW);
         }
 
         fixed (byte* i = mesh.IndexBuffer.Data)
@@ -153,14 +154,13 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                 GL_ELEMENT_ARRAY_BUFFER,
                 mesh.IndexBuffer.Data.Length,
                 (IntPtr)i,
-                GL_STATIC_DRAW);
+                GL_DYNAMIC_DRAW);
         }
         
         var elements = mesh.Layout.Elements;
         for (int slot = 0; slot < elements.Count; slot++)
         {
             var elem = elements[slot];
-
             _gl.VertexAttribPointer(
                 slot,
                 ComponentCount(elem.Format),
@@ -234,6 +234,8 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         _gl.Uniform1f(directionalLightColorGLoc, 1.0f);
         _gl.Uniform1f(directionalLightColorBLoc, 1.0f);
         
+        CheckError(_gl);
+        
         if (_mesh == null)
             return;
         
@@ -243,10 +245,9 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                 GL_TRIANGLES,
                 sm.IndexCount,
                 GL_UNSIGNED_SHORT,
-                sm.IndexStart * 4);
+                sm.IndexStart * 2);
+            CheckError(_gl);
         }
-        
-        CheckError(_gl);
     }
     
     public void Dispose()

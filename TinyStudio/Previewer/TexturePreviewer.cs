@@ -19,6 +19,7 @@ namespace TinyStudio.Previewer;
 
 public class TexturePreviewer : IPreviewer
 {
+    private ZoomableImageView? _zoomableImageView;
     public bool CanHandle(AssetWrapper asset)
     {
         return asset.Type == "Texture2D" || asset.Type == "Sprite";
@@ -31,17 +32,22 @@ public class TexturePreviewer : IPreviewer
             return new TextBlock { Text = "Not a texture." };
         }
 
-        var zoomableImageView = new ZoomableImageView();
+        _zoomableImageView ??= new ZoomableImageView();
 
         if (asset.Value is ITexture2D texture2D)
-            _ = LoadTextureAsync(texture2D, assetManager, zoomableImageView);
+            _ = LoadTextureAsync(texture2D, assetManager, _zoomableImageView);
         else if (asset.Value is ISprite sprite)
-            _ = LoadSpriteAsync(sprite, assetManager, zoomableImageView);
+            _ = LoadSpriteAsync(sprite, assetManager, _zoomableImageView);
 
-        return zoomableImageView;
+        return _zoomableImageView;
+    }
+    
+    public void CleanContext()
+    {
+        _zoomableImageView?.CleanContext();
     }
 
-    private async Task LoadTextureAsync(ITexture2D texture2D, AssetManager assetManager, ZoomableImageView zoomableImageView)
+    private static async Task LoadTextureAsync(ITexture2D texture2D, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
         var (pixelData, width, height) = await Task.Run(() =>
         {
@@ -55,14 +61,14 @@ public class TexturePreviewer : IPreviewer
         zoomableImageView.SetInfo($"Width: {texture2D.m_Width}\nHeight: {texture2D.m_Height}\nFormat: {((TextureFormat)texture2D.m_TextureFormat).ToString()}");
     }
     
-    private async Task LoadSpriteAsync(ISprite sprite, AssetManager assetManager, ZoomableImageView zoomableImageView)
+    private static async Task LoadSpriteAsync(ISprite sprite, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
         // TODO: Optimize this path to also use WriteableBitmap
         using var image = await Task.Run(() => assetManager.DecodeSpriteToImage(sprite));
         await LoadImageAsync(image, zoomableImageView);
     }
     
-    private async Task LoadImageAsync(Image<Bgra32> image, ZoomableImageView zoomableImageView)
+    private static async Task LoadImageAsync(Image<Bgra32> image, ZoomableImageView zoomableImageView)
     {
         var memoryStream = new MemoryStream();
         await image.SaveAsPngAsync(memoryStream);
@@ -72,7 +78,7 @@ public class TexturePreviewer : IPreviewer
         zoomableImageView.SetImage(bitmap);
     }
     
-    private Task LoadImageAsync(byte[] data, int width, int height, ZoomableImageView zoomableImageView)
+    private static Task LoadImageAsync(byte[] data, int width, int height, ZoomableImageView zoomableImageView)
     {
         if (data.Length == 0)
         {

@@ -9,6 +9,8 @@ namespace TinyStudio.Previewer;
 
 public class TextPreviewer : IPreviewer
 {
+    private TextPreviewView? _textPreview;
+    
     public bool CanHandle(AssetWrapper asset)
     {
         return asset.Value is ITextAsset;
@@ -20,10 +22,19 @@ public class TextPreviewer : IPreviewer
         {
             return new TextBlock { Text = "Not a TextAsset." };
         }
+        
+        _textPreview ??= new TextPreviewView();
 
-        return new TextPreviewView
+        _textPreview.DataContext = new TextPreviewViewModel(textAsset);
+
+        return _textPreview;
+    }
+    
+    public void CleanContext()
+    {
+        if (_textPreview != null)
         {
-            DataContext = new TextPreviewViewModel(textAsset)
-        };
+            _textPreview.DataContext = null;
+        }
     }
 }

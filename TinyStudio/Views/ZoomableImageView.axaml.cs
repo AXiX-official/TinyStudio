@@ -59,6 +59,13 @@ public partial class ZoomableImageView : UserControl
     {
         _matrixTransform.Matrix = Matrix.Identity;
     }
+    
+    public void CleanContext()
+    {
+        _image.Source = null;
+        _infoTextBlock.Text = string.Empty;
+        Reset();
+    }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {

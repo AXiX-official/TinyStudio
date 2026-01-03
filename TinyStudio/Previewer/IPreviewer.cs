@@ -8,4 +8,5 @@ public interface IPreviewer
 {
     bool CanHandle(AssetWrapper asset);
     Control CreatePreview(AssetWrapper asset, AssetManager assetManager);
+    void CleanContext() { }
 }

@@ -13,7 +13,7 @@ public sealed class GlMeshView : OpenGlControlBase, ICustomHitTest
 {
     private MeshData? _meshData;
     
-    public MeshData MeshData
+    public MeshData? MeshData
     {
         get => _meshData!;
         set
@@ -160,12 +160,9 @@ public sealed class GlMeshView : OpenGlControlBase, ICustomHitTest
 
     protected override void OnOpenGlInit(GlInterface gl)
     {
-        //var obj = ObjParser.Load(@"C:\Users\28797\Desktop\Mesh\R2BazhiMd019091ClothVC.obj");
-        //var mesh = ObjToMeshData.Convert(obj);
         _renderer = new MeshDataRenderer(gl);
         if (_meshData != null)
             _renderer.Mesh = _meshData;
-        //_renderer = new MeshDataRenderer(gl, _meshData);
     }
 
     protected override void OnOpenGlRender(GlInterface gl, int fb)
