@@ -16,6 +16,7 @@ public class PreviewerFactory
         {
             new TexturePreviewer(),
             new TextPreviewer(),
+            new MeshPreviewer(),
             // Add other previewers here
             new DefaultPreviewer()
         };

@@ -1,6 +1,7 @@
 ﻿    using System.ComponentModel;
     using UnityAsset.NET;
-using UnityAsset.NET.TypeTree.PreDefined;
+    using UnityAsset.NET.Enums;
+    using UnityAsset.NET.TypeTree.PreDefined;
 
 namespace TinyStudio.Models;
 
@@ -19,6 +20,8 @@ public class AssetWrapper : INotifyPropertyChanged
     public long PathId => m_Asset.Info.PathId;
 
     public string ToDump => m_Asset.Value.ToPlainText().ToString();
+    
+    public Endianness Endianness => m_Asset.RawData.Endian;
 
     public AssetWrapper(Asset asset)
     {
