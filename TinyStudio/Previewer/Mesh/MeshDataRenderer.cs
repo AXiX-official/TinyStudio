@@ -11,6 +11,7 @@ public sealed unsafe class MeshDataRenderer : IDisposable
     private const int GL_DYNAMIC_DRAW = 0x88E8;
     private readonly GlInterface _gl;
     private MeshData? _mesh;
+    private bool _dirtyMark = false;
 
     public MeshData? Mesh
     {
@@ -20,7 +21,8 @@ public sealed unsafe class MeshDataRenderer : IDisposable
             {
                 _mesh = value;
                 if (value != null)
-                    UploadMesh(value);
+                    _dirtyMark = true;
+                    //UploadMesh(value);
             }
         }
     }
@@ -51,10 +53,6 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         _gl.DepthMask(1);
         
         //Console.WriteLine($"Renderer: {_gl.GetString(GL_RENDERER)} Version: {_gl.GetString(GL_VERSION)}");
-        
-        _vao = _gl.GenVertexArray();
-        _vbo = _gl.GenBuffer();
-        _ebo = _gl.GenBuffer();
 
         CreateShaderProgram();
     }
@@ -114,20 +112,18 @@ public sealed unsafe class MeshDataRenderer : IDisposable
 
         _vertexShader = _gl.CreateShader(GL_VERTEX_SHADER);
         var err = _gl.CompileShaderAndGetError(_vertexShader, vs);
-        if (!string.IsNullOrEmpty(err))
+        if (!string.IsNullOrWhiteSpace(err))
             Console.WriteLine(err);
         _fragmentShader = _gl.CreateShader(GL_FRAGMENT_SHADER);
         err = _gl.CompileShaderAndGetError(_fragmentShader, fs);
-        if (!string.IsNullOrEmpty(err))
+        if (!string.IsNullOrWhiteSpace(err))
             Console.WriteLine(err);
 
         _shaderProgram  = _gl.CreateProgram();
         _gl.AttachShader(_shaderProgram , _vertexShader);
         _gl.AttachShader(_shaderProgram , _fragmentShader);
-        
-        Console.WriteLine(_gl.LinkProgramAndGetError(_shaderProgram));
-        
-        _gl.UseProgram(_shaderProgram);
+
+        _gl.LinkProgram(_shaderProgram);
         
         _gl.DeleteShader(_vertexShader);
         _gl.DeleteShader(_fragmentShader);
@@ -135,8 +131,7 @@ public sealed unsafe class MeshDataRenderer : IDisposable
     
     private void UploadMesh(MeshData mesh)
     {
-        _gl.BindVertexArray(_vao);
-
+        _vbo = _gl.GenBuffer();
         fixed (byte* v = mesh.VertexBuffer.Data)
         {
             _gl.BindBuffer(GL_ARRAY_BUFFER, _vbo);
@@ -144,9 +139,10 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                 GL_ARRAY_BUFFER,
                 mesh.VertexBuffer.Data.Length,
                 (IntPtr)v,
-                GL_DYNAMIC_DRAW);
+                GL_STATIC_DRAW);
         }
 
+        _ebo = _gl.GenBuffer();
         fixed (byte* i = mesh.IndexBuffer.Data)
         {
             _gl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
@@ -154,9 +150,11 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                 GL_ELEMENT_ARRAY_BUFFER,
                 mesh.IndexBuffer.Data.Length,
                 (IntPtr)i,
-                GL_DYNAMIC_DRAW);
+                GL_STATIC_DRAW);
         }
         
+        _vao = _gl.GenVertexArray();
+        _gl.BindVertexArray(_vao);
         var elements = mesh.Layout.Elements;
         for (int slot = 0; slot < elements.Count; slot++)
         {
@@ -172,8 +170,7 @@ public sealed unsafe class MeshDataRenderer : IDisposable
             CheckError(_gl);
         }
         
-        _gl.BindBuffer(GL_ARRAY_BUFFER, 0);
-        _gl.BindVertexArray(0);
+        _dirtyMark = false;
     }
     
     private static void CheckError(GlInterface gl)
@@ -193,6 +190,9 @@ public sealed unsafe class MeshDataRenderer : IDisposable
     
     public void Render(PixelSize size, Vector3 cameraPos, Vector3 cameraTarget)
     {
+        if (_dirtyMark)
+            UploadMesh(_mesh!);
+        
         _gl.Viewport(0, 0, size.Width, size.Height);
         
         _gl.ClearDepth(1);
@@ -203,6 +203,8 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         _gl.BindBuffer(GL_ARRAY_BUFFER, _vbo);
         _gl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
         _gl.BindVertexArray(_vao);
+        
+        _gl.UseProgram(_shaderProgram);
         
         CheckError(_gl);
         

@@ -26,9 +26,7 @@ public class MeshPreviewer : IPreviewer
         {
             return new TextBlock { Text = "Not a mesh." };
         }
-        // TODO: Fix switching mesh
-        //_meshPreview ??= new MeshPreview();
-        _meshPreview = new MeshPreview();
+        _meshPreview ??= new MeshPreview();
         var processedMesh = MeshHelper.GetProcessedMesh(assetManager, (IMesh)asset.Value, asset.Endianness);
         _meshPreview.MeshData = processedMesh;
         return _meshPreview;
