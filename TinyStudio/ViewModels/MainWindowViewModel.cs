@@ -93,6 +93,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadFile()
     {
+        Reset();
         if (_window == null)
         {
             StatusText = "Error: Window reference not set!";
@@ -126,6 +127,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadFolder()
     {
+        Reset();
         if (_window == null)
         {
             StatusText = "Error: Window reference not set!";
@@ -155,6 +157,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadFileList()
     {
+        Reset();
         if (_window == null)
         {
             StatusText = "Error: Window reference not set!";
@@ -288,7 +291,7 @@ public partial class MainWindowViewModel : ObservableObject
         catch (Exception ex)
         {
             LogService.Error($"Error occurred: {ex.Message}\n{ex.StackTrace}");
-            StatusText = $"Error: {ex.Message}";
+            StatusText = $"Error: {ex.Message.Split('\n').FirstOrDefault()}";
             throw;
         }
     }
@@ -482,10 +485,19 @@ public partial class MainWindowViewModel : ObservableObject
             _isUpdatingAssetTypes = true;
             if (sender is SelectableType { TypeName: "All" } allType)
             {
-                // "All" was changed, update all others to match
-                foreach (var type in AssetTypes.Where(t => t != allType))
+                if (allType.IsSelected)
                 {
-                    type.IsSelected = allType.IsSelected;
+                    foreach (var type in AssetTypes.Where(t => t != allType))
+                        type.IsSelected = true;
+                    FilteredAssets.Refresh();
+                }
+                else
+                {
+                    var allTypesSelected = AssetTypes.Skip(1).All(t => t.IsSelected);
+                    if (!allTypesSelected)
+                    {
+                        FilteredAssets.Refresh();
+                    }
                 }
             }
             else
@@ -505,12 +517,12 @@ public partial class MainWindowViewModel : ObservableObject
                         all.IsSelected = true;
                     }
                 }
+                FilteredAssets.Refresh();
             }
         }
         finally
         {
             _isUpdatingAssetTypes = false;
-            FilteredAssets.Refresh();
         }
     }
 
