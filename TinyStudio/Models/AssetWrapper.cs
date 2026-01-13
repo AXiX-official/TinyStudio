@@ -1,6 +1,8 @@
 ﻿    using System.ComponentModel;
+    using System.Diagnostics.CodeAnalysis;
     using UnityAsset.NET;
     using UnityAsset.NET.Enums;
+    using UnityAsset.NET.FileSystem;
     using UnityAsset.NET.TypeTree.PreDefined;
 
 namespace TinyStudio.Models;
@@ -14,10 +16,12 @@ public class AssetWrapper : INotifyPropertyChanged
     public string Type => m_Asset.Type;
 
     public string Name => m_Asset.Name;
+    
+    public string Container => m_Asset.Container;
 
-    public long Size => m_Asset.Info.ByteSize;
+    public long Size => m_Asset.Size;
 
-    public long PathId => m_Asset.Info.PathId;
+    public long PathId => m_Asset.PathId;
 
     public string ToDump => m_Asset.Value.ToPlainText().ToString();
     
@@ -37,4 +41,10 @@ public class AssetWrapper : INotifyPropertyChanged
 
     public void OnPropertyChanged(string propertyName)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    public bool GetVirtualFile([NotNullWhen(true)] out IVirtualFile? file)
+    {
+        file = m_Asset.SourceFile?.SourceVirtualFile;
+        return file != null;
+    }
 }

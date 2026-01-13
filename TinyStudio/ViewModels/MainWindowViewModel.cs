@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
@@ -485,20 +486,10 @@ public partial class MainWindowViewModel : ObservableObject
             _isUpdatingAssetTypes = true;
             if (sender is SelectableType { TypeName: "All" } allType)
             {
-                if (allType.IsSelected)
-                {
-                    foreach (var type in AssetTypes.Where(t => t != allType))
-                        type.IsSelected = true;
-                    FilteredAssets.Refresh();
-                }
-                else
-                {
-                    var allTypesSelected = AssetTypes.Skip(1).All(t => t.IsSelected);
-                    if (!allTypesSelected)
-                    {
-                        FilteredAssets.Refresh();
-                    }
-                }
+                var isSelected = allType.IsSelected;
+                foreach (var type in AssetTypes)
+                    type.IsSelected = isSelected;
+                FilteredAssets.Refresh();
             }
             else
             {
@@ -566,6 +557,7 @@ public partial class MainWindowViewModel : ObservableObject
             var regex = new Regex(pattern, RegexOptions.IgnoreCase);
 
             return regex.IsMatch(asset.Name) ||
+                   regex.IsMatch(asset.Container) ||
                    regex.IsMatch(asset.Type) ||
                    regex.IsMatch(asset.PathId.ToString()) ||
                    regex.IsMatch(asset.Size.ToString());
@@ -836,6 +828,24 @@ public partial class MainWindowViewModel : ObservableObject
         else
         {
             LogService.Info("Obj export canceled.");
+        }
+    }
+
+    [RelayCommand]
+    public void ShowOriginalFile(AssetWrapper asset)
+    {
+        var hasSourceFile = asset.GetVirtualFile(out var file);
+
+        if (hasSourceFile)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Process.Start("explorer.exe", $"/select,\"{file.Path}\"");
+            }
+        }
+        else
+        {
+            LogService.Error("No source file linked to selected asset.");
         }
     }
 }

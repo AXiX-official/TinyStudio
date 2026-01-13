@@ -43,11 +43,27 @@
                 <Style Selector="DataGridCell">
                     <Setter Property="Padding" Value="2,2"/>
                 </Style>
+                <Style Selector="DataGridRow">
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <MenuItem Header="Show Original File" 
+                                          Command="{Binding $parent[UserControl].DataContext.ShowOriginalFileCommand}"
+                                          CommandParameter="{Binding}" />
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="Name" Width="200" MinWidth="100" SortMemberPath="Name">
                     <DataTemplate x:DataType="models:AssetWrapper">
                         <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Container" Width="200" MinWidth="100" SortMemberPath="Container">
+                    <DataTemplate x:DataType="models:AssetWrapper">
+                        <TextBlock Text="{Binding Container}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Type" Width="120" MinWidth="60" SortMemberPath="Type">
