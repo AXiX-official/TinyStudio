@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
+using Avalonia.Logging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -63,6 +64,9 @@ public partial class MainWindowViewModel : ObservableObject
     private DataGridCollectionView _filteredAssets;
     
     public ObservableCollection<SelectableType> AssetTypes { get; } = new();
+    private HashSet<string> _selectedAssetTypes = new();
+    private bool _selectAll;
+    private Regex _regex;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -253,11 +257,6 @@ public partial class MainWindowViewModel : ObservableObject
                 _assetManager.LoadedAssets
                 .Select(asset => new AssetWrapper(asset))
                 .ToList());
-            
-            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets))
-            {
-                Filter = FilterAssets
-            };
 
             foreach (var selectableType in AssetTypes)
             {
@@ -268,6 +267,7 @@ public partial class MainWindowViewModel : ObservableObject
             var all = new SelectableType("All", true);
             all.PropertyChanged += OnSelectableTypePropertyChanged;
             AssetTypes.Add(all);
+            _selectAll = true;
             
             var distinctTypes = assets.Select(a => a.Type).Distinct().OrderBy(t => t);
             foreach (var typeName in distinctTypes)
@@ -276,6 +276,13 @@ public partial class MainWindowViewModel : ObservableObject
                 selectableType.PropertyChanged += OnSelectableTypePropertyChanged;
                 AssetTypes.Add(selectableType);
             }
+            _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
+            
+            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets))
+            {
+                Filter = FilterAssets
+            };
+            
             StatusText = $"Loaded {assets.Count} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.";
             LogService.Info(StatusText);
            
@@ -302,15 +309,16 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_window != null)
             _window.Title = App.AppName;
-        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
-        {
-            Filter = FilterAssets
-        };
         foreach (var selectableType in AssetTypes)
         {
             selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
         }
         AssetTypes.Clear();
+        _selectedAssetTypes.Clear();
+        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
+        {
+            Filter = FilterAssets
+        };
         SearchText = string.Empty;
         _assetManager.Clear();
         _fileSystem.Clear();
@@ -412,7 +420,6 @@ public partial class MainWindowViewModel : ObservableObject
             _dumpViewModel = null;
             _dumpTab = null;
             IsDumpEnabled = false;
-            GC.Collect();
         }
         else
         {
@@ -486,10 +493,12 @@ public partial class MainWindowViewModel : ObservableObject
             _isUpdatingAssetTypes = true;
             if (sender is SelectableType { TypeName: "All" } allType)
             {
-                var isSelected = allType.IsSelected;
+                _selectAll = allType.IsSelected;
                 foreach (var type in AssetTypes)
-                    type.IsSelected = isSelected;
-                FilteredAssets.Refresh();
+                    type.IsSelected = _selectAll;
+                _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
+                if (_selectAll)
+                    FilteredAssets.Refresh();
             }
             else
             {
@@ -508,6 +517,7 @@ public partial class MainWindowViewModel : ObservableObject
                         all.IsSelected = true;
                     }
                 }
+                _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
                 FilteredAssets.Refresh();
             }
         }
@@ -519,11 +529,15 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value)
     {
+        var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
+        _regex = new Regex(pattern, RegexOptions.IgnoreCase);
         FilteredAssets.Refresh();
     }
 
     partial void OnUseRegexChanged(bool value)
     {
+        var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
+        _regex = new Regex(pattern, RegexOptions.IgnoreCase);
         FilteredAssets.Refresh();
     }
 
@@ -535,11 +549,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         // Type filter
-        var selectAll = AssetTypes.FirstOrDefault(t => t.TypeName == "All")?.IsSelected ?? true;
-        if (!selectAll)
+        if (!_selectAll)
         {
-            var selectedTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
-            if (selectedTypes.Any() && !selectedTypes.Contains(asset.Type))
+            if (_selectedAssetTypes.Any() && !_selectedAssetTypes.Contains(asset.Type))
             {
                 return false;
             }
@@ -553,14 +565,11 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
-            var regex = new Regex(pattern, RegexOptions.IgnoreCase);
-
-            return regex.IsMatch(asset.Name) ||
-                   regex.IsMatch(asset.Container) ||
-                   regex.IsMatch(asset.Type) ||
-                   regex.IsMatch(asset.PathId.ToString()) ||
-                   regex.IsMatch(asset.Size.ToString());
+            return _regex.IsMatch(asset.Name) ||
+                   _regex.IsMatch(asset.Container) ||
+                   _regex.IsMatch(asset.Type) ||
+                   _regex.IsMatch(asset.PathId.ToString()) ||
+                   _regex.IsMatch(asset.Size.ToString());
         }
         catch (RegexParseException)
         {
@@ -623,8 +632,6 @@ public partial class MainWindowViewModel : ObservableObject
                 throw new ArgumentOutOfRangeException(nameof(game), game, null);
         }
     }
-    
-    
 
     partial void OnSelectedAssetChanged(AssetWrapper? value)
     {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using AvaloniaEdit.Document;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,7 +27,11 @@ public partial class DumpViewModel : ObservableObject
             return;
         }
 
-        Task.Run(() => asset.ToDump)
+        Task.Run(() =>
+            {
+                var dump = asset.ToDump;
+                return dump;
+            })
             .ContinueWith(task =>
             {
                 if (task.IsCompletedSuccessfully)
@@ -39,6 +44,5 @@ public partial class DumpViewModel : ObservableObject
                 }
                 DumpDocument.UndoStack.SizeLimit = 0;
             }, TaskScheduler.FromCurrentSynchronizationContext());
-        GC.Collect();
     }
 }
