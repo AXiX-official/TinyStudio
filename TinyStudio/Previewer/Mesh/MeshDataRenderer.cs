@@ -74,8 +74,12 @@ public sealed unsafe class MeshDataRenderer : IDisposable
 
                               void main()
                               {
-                                  gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
-                                  FragNormal = mat3(transpose(inverse(uModel))) * aNormal;
+                                  vec3 fixedPos = aPos;
+                                  fixedPos.x = -fixedPos.x;
+                                  vec3 fixedNormal = aNormal;
+                                  fixedNormal.x = -fixedNormal.x;
+                                  gl_Position = uProjection * uView * uModel * vec4(fixedPos, 1.0);
+                                  FragNormal = mat3(transpose(inverse(uModel))) * fixedNormal;
                               }
                           """;
 
