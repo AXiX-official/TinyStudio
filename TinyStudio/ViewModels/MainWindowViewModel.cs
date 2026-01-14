@@ -64,9 +64,7 @@ public partial class MainWindowViewModel : ObservableObject
     private DataGridCollectionView _filteredAssets;
     
     public ObservableCollection<SelectableType> AssetTypes { get; } = new();
-    private HashSet<string> _selectedAssetTypes = new();
-    private bool _selectAll;
-    private Regex _regex;
+    private readonly AssetFilter _assetFilter = new();
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -267,7 +265,6 @@ public partial class MainWindowViewModel : ObservableObject
             var all = new SelectableType("All", true);
             all.PropertyChanged += OnSelectableTypePropertyChanged;
             AssetTypes.Add(all);
-            _selectAll = true;
             
             var distinctTypes = assets.Select(a => a.Type).Distinct().OrderBy(t => t);
             foreach (var typeName in distinctTypes)
@@ -276,7 +273,6 @@ public partial class MainWindowViewModel : ObservableObject
                 selectableType.PropertyChanged += OnSelectableTypePropertyChanged;
                 AssetTypes.Add(selectableType);
             }
-            _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
             
             FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets))
             {
@@ -314,7 +310,7 @@ public partial class MainWindowViewModel : ObservableObject
             selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
         }
         AssetTypes.Clear();
-        _selectedAssetTypes.Clear();
+        _assetFilter.Reset();
         FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
         {
             Filter = FilterAssets
@@ -493,31 +489,26 @@ public partial class MainWindowViewModel : ObservableObject
             _isUpdatingAssetTypes = true;
             if (sender is SelectableType { TypeName: "All" } allType)
             {
-                _selectAll = allType.IsSelected;
+                var selectAll = allType.IsSelected;
                 foreach (var type in AssetTypes)
-                    type.IsSelected = _selectAll;
-                _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
-                if (_selectAll)
+                    type.IsSelected = selectAll;
+                _assetFilter.UpdateTypeFilter(AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet(), selectAll);
+                if (selectAll)
                     FilteredAssets.Refresh();
             }
             else
             {
-                // Another type was changed
                 var all = AssetTypes.FirstOrDefault(t => t.TypeName == "All");
-                if (all != null)
+                if (all is null) return;
+                if (AssetTypes.Skip(1).Any(t => !t.IsSelected))
                 {
-                    // If any item is unchecked, uncheck "All"
-                    if (AssetTypes.Skip(1).Any(t => !t.IsSelected))
-                    {
-                        all.IsSelected = false;
-                    }
-                    // If all other items are checked, check "All"
-                    else if (AssetTypes.Skip(1).All(t => t.IsSelected))
-                    {
-                        all.IsSelected = true;
-                    }
+                    all.IsSelected = false;
                 }
-                _selectedAssetTypes = AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet();
+                else if (AssetTypes.Skip(1).All(t => t.IsSelected))
+                {
+                    all.IsSelected = true;
+                }
+                _assetFilter.UpdateTypeFilter(AssetTypes.Where(t => t.IsSelected && t.TypeName != "All").Select(t => t.TypeName).ToHashSet(), all.IsSelected);
                 FilteredAssets.Refresh();
             }
         }
@@ -529,53 +520,19 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value)
     {
-        var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
-        _regex = new Regex(pattern, RegexOptions.IgnoreCase);
+        _assetFilter.UpdateSearchFilter(value, UseRegex);
         FilteredAssets.Refresh();
     }
 
     partial void OnUseRegexChanged(bool value)
     {
-        var pattern = UseRegex ? SearchText : Regex.Escape(SearchText);
-        _regex = new Regex(pattern, RegexOptions.IgnoreCase);
+        _assetFilter.UpdateSearchFilter(SearchText, value);
         FilteredAssets.Refresh();
     }
 
     private bool FilterAssets(object item)
     {
-        if (item is not AssetWrapper asset)
-        {
-            return false;
-        }
-
-        // Type filter
-        if (!_selectAll)
-        {
-            if (_selectedAssetTypes.Any() && !_selectedAssetTypes.Contains(asset.Type))
-            {
-                return false;
-            }
-        }
-
-        // Search text filter
-        if (string.IsNullOrEmpty(SearchText))
-        {
-            return true;
-        }
-
-        try
-        {
-            return _regex.IsMatch(asset.Name) ||
-                   _regex.IsMatch(asset.Container) ||
-                   _regex.IsMatch(asset.Type) ||
-                   _regex.IsMatch(asset.PathId.ToString()) ||
-                   _regex.IsMatch(asset.Size.ToString());
-        }
-        catch (RegexParseException)
-        {
-            // If user enters invalid regex, treat as no match
-            return false;
-        }
+        return item is AssetWrapper asset && _assetFilter.Matches(asset);
     }
 
     public MainWindowViewModel()

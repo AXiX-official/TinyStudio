@@ -1,6 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using AvaloniaEdit.Document;
 using CommunityToolkit.Mvvm.ComponentModel;
 using TinyStudio.Models;
@@ -27,11 +25,7 @@ public partial class DumpViewModel : ObservableObject
             return;
         }
 
-        Task.Run(() =>
-            {
-                var dump = asset.ToDump;
-                return dump;
-            })
+        Task.Run(() => asset.ToDump)
             .ContinueWith(task =>
             {
                 if (task.IsCompletedSuccessfully)
