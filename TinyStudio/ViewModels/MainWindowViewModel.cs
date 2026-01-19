@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AssetRipper.Tpk;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -198,6 +198,34 @@ public partial class MainWindowViewModel : ObservableObject
             await _assetManager.LoadAsync(virtualFiles, true, progress);
             progress.Flush();
             LogStatus($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
+
+            if (_assetManager.NeedTpk)
+            {
+                if (File.Exists(UnityAsset.NET.Setting.DefaultTpkFilePath))
+                {
+                    await _assetManager.LoadTpkFile(UnityAsset.NET.Setting.DefaultTpkFilePath, progress: progress);
+                }
+                else
+                {
+                    var file = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                    {
+                        Title = "Load Tpk file",
+                        AllowMultiple = false,
+                        FileTypeFilter = [new("Tpk") { Patterns = [ "*.tpk" ] }]
+                    });
+        
+                    if (file.Any())
+                    {
+                        await _assetManager.LoadTpkFile(file[0].Path.LocalPath, progress: progress);
+                    }
+                    else
+                    {
+                        LogStatus("Tpk loading canceled.");
+                        Reset();
+                        return;
+                    }
+                }
+            }
             
             LogStatus("Loading Assets...");
             startTime.Restart();
@@ -663,13 +691,13 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedFileTabChanged(TabItemViewModel? tab)
+    partial void OnSelectedFileTabChanged(TabItemViewModel? value)
     {
-        if (tab?.Content is Workspace)
+        if (value?.Content is Workspace)
         {
             OnSelectedAssetWorkspaceChanged(SelectedAssetWorkspace);
         }
-        else if (tab?.Content is AssetListView)
+        else if (value?.Content is AssetListView)
         {
             OnSelectedAssetChanged(SelectedAsset);
         }
