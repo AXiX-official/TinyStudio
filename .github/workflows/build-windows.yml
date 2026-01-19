@@ -32,21 +32,12 @@ jobs:
               
       - name: Restore dependencies
         run: dotnet restore TinyStudio/TinyStudio.csproj
-
-      - name: Build and publish for .NET 8
-        run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net8.0 -r win-x64 -o ./publish-net8
         
       - name: Build and publish for .NET 9
         run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net9.0 -r win-x64 -o ./publish-net9
 
       - name: Build and publish for .NET 10
         run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r win-x64 -o ./publish-net10
-
-      - name: Upload .NET 8 Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TinyStudio-net8-windows-x64
-          path: ./publish-net8
 
       - name: Upload .NET 9 Artifact
         uses: actions/upload-artifact@v4
