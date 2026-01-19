@@ -3,6 +3,7 @@
         xmlns:vm="using:TinyStudio.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:models="clr-namespace:TinyStudio.Models"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="TinyStudio.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -22,7 +23,7 @@
             </MenuItem>
             
             <MenuItem Header="_Options">
-                <MenuItem Header="Set UnityCN Key" Command="{Binding SetUnityCNKeyCommand}"/>
+                <MenuItem Header="Set UnityCN Key" Command="{Binding SetUnityCnKeyCommand}"/>
                 <MenuItem StaysOpenOnClick="True" Focusable="False">
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
@@ -62,12 +63,17 @@
                     <MenuItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Console Log Level: " VerticalAlignment="Center"/>
-                            <ComboBox ItemsSource="{Binding AvailableLevels}"
-                                      SelectedItem="{Binding SelectedLogLevel}"
-                                      Width="100"
-                                      Margin="5,0"/>
                         </StackPanel>
                     </MenuItem.Header>
+                    <ListBox ItemsSource="{Binding AvailableLevels}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:SelectableLogLevel">
+                                <CheckBox Content="{Binding Level}" 
+                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          IsEnabled="{Binding IsEnabled}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </MenuItem>
             </MenuItem>
             

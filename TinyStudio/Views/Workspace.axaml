@@ -1,11 +1,11 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:TinyStudio.ViewModels"
              xmlns:models="clr-namespace:TinyStudio.Models"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="TinyStudio.Views.AssetListView"
+             x:Class="TinyStudio.Views.Workspace"
              x:DataType="vm:MainWindowViewModel">
     <DockPanel>
         <Grid DockPanel.Dock="Top" Margin="5" ColumnDefinitions="*,Auto,Auto">
@@ -14,12 +14,12 @@
                      KeyDown="SearchTextBox_KeyDown"
                      Margin="0,0,5,0"/>
             <CheckBox Grid.Column="1" Content="Regex" 
-                      IsChecked="{Binding UseRegex, Mode=TwoWay}" 
+                      IsChecked="{Binding UseRegexWorkspace, Mode=TwoWay}" 
                       VerticalAlignment="Center" Margin="0,0,5,0" ToolTip.Tip="Use Regular Expression for search"/>
             <Button Grid.Column="2" Content="Filter Types" Margin="0,0,5,0" MinWidth="120">
                 <Button.Flyout>
                     <Flyout Placement="BottomEdgeAlignedLeft">
-                        <ListBox ItemsSource="{Binding AssetTypes}" MaxHeight="400">
+                        <ListBox ItemsSource="{Binding AssetTypesWorkspace}" MaxHeight="400">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:SelectableType">
                                     <CheckBox Content="{Binding TypeName}" 
@@ -31,8 +31,8 @@
                 </Button.Flyout>
             </Button>
         </Grid>
-        <DataGrid ItemsSource="{Binding FilteredAssets}"
-                  SelectedItem="{Binding SelectedAsset}"
+        <DataGrid ItemsSource="{Binding FilteredAssetsWorkspace}"
+                  SelectedItem="{Binding SelectedAssetWorkspace}"
                   Margin="5"
                   RowHeight="14"
                   AutoGenerateColumns="False"
@@ -47,12 +47,8 @@
                     <Setter Property="ContextMenu">
                         <Setter.Value>
                             <ContextMenu>
-                                <MenuItem Header="Add to Workspace" 
-                                          Command="{Binding $parent[UserControl].DataContext.AddToWorkspaceCommand}"
-                                          CommandParameter="{Binding}" />
-                                <Separator/>
-                                <MenuItem Header="Show Original File" 
-                                          Command="{Binding $parent[UserControl].DataContext.ShowOriginalFileCommand}"
+                                <MenuItem Header="Remove From Workspace" 
+                                          Command="{Binding $parent[UserControl].DataContext.RemoveFromWorkspaceCommand}"
                                           CommandParameter="{Binding}" />
                             </ContextMenu>
                         </Setter.Value>

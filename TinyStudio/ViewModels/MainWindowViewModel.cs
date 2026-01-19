@@ -1,20 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
-using Avalonia.Logging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SixLabors.ImageSharp;
 using TinyStudio.Games.GF;
 using TinyStudio.Games.PerpetualNovelty;
 using TinyStudio.Models;
@@ -22,10 +20,8 @@ using TinyStudio.Service;
 using TinyStudio.Previewer;
 using TinyStudio.Views;
 using UnityAsset.NET;
-using UnityAsset.NET.AssetHelper;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
 
 namespace TinyStudio.ViewModels;
 
@@ -82,38 +78,18 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = "Ready";
 
-    [ObservableProperty]
-    private bool _isConsoleVisible;
-    
-    [ObservableProperty]
-    private bool _isPreviewEnabled;
-    
-    [ObservableProperty]
-    private bool _isDumpEnabled;
-
     #region File
 
     [RelayCommand]
     private async Task LoadFile()
     {
         Reset();
-        if (_window == null)
-        {
-            StatusText = "Error: Window reference not set!";
-            LogService.Error("Window reference not set!");
-            return;
-        }
         
-        var fileTypes = new List<FilePickerFileType>
-        {
-            new("any file") { Patterns = [ "*" ] },
-        };
-        
-        var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Load File",
             AllowMultiple = true,
-            FileTypeFilter = fileTypes
+            FileTypeFilter = [new("any file") { Patterns = [ "*" ] }]
         });
         
         if (files.Any())
@@ -122,8 +98,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         else
         {
-            StatusText = "File loading canceled.";
-            LogService.Info("File loading canceled.");
+            LogStatus("File loading canceled.");
         }
     }
     
@@ -131,14 +106,8 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task LoadFolder()
     {
         Reset();
-        if (_window == null)
-        {
-            StatusText = "Error: Window reference not set!";
-            LogService.Error("Window reference not set!");
-            return;
-        }
         
-        var folders = await _window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var folders = await _window!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Load Folder",
             AllowMultiple = false
@@ -152,8 +121,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         else
         {
-            StatusText = "Folder loading canceled.";
-            LogService.Info("Folder loading canceled.");
+            LogStatus("Folder loading canceled.");
         }
     }
 
@@ -161,23 +129,12 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task LoadFileList()
     {
         Reset();
-        if (_window == null)
-        {
-            StatusText = "Error: Window reference not set!";
-            LogService.Error("Window reference not set!");
-            return;
-        }
         
-        var fileTypes = new List<FilePickerFileType>
-        {
-            new("FileList") { Patterns = [ "*.txt" ] },
-        };
-        
-        var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Load FileList",
             AllowMultiple = false,
-            FileTypeFilter = fileTypes
+            FileTypeFilter = [new("FileList") { Patterns = [ "*.txt" ] }]
         });
         
         if (files.Any())
@@ -201,21 +158,20 @@ public partial class MainWindowViewModel : ObservableObject
         }
         else
         {
-            StatusText = "File loading canceled.";
-            LogService.Info("File loading canceled.");
+            LogStatus("File loading canceled.");
         }
     }
 
     public async Task LoadFilesFromPathsAsync(IEnumerable<string> paths)
     {
         Reset();
+        
         try
         {
             var pathList = paths.ToList();
-            if (!pathList.Any())
+            if (pathList.Count == 0)
             {
-                LogService.Info("No files to load.");
-                StatusText = "No files to load.";
+                LogStatus("No files to load.");
                 return;
             }
 
@@ -227,28 +183,23 @@ public partial class MainWindowViewModel : ObservableObject
                 }), 
                 TimeSpan.FromMilliseconds(100));
             
-            LogService.Info($"Starting to load {pathList.Count} files.");
+            LogStatus($"Starting to load {pathList.Count} files.");
             var startTime = Stopwatch.StartNew();
             var virtualFiles = await _fileSystem.LoadAsync(pathList, progress);
-            LogService.Info($"Loaded {pathList.Count} files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
-            
             progress.Flush();
+            LogStatus($"Loaded {pathList.Count} files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
             
             LoadedFiles.Clear();
             foreach (var virtualFile in virtualFiles)
-            {
                 LoadedFiles.Add(virtualFile);
-            }
             
-            LogService.Info($"Starting to load bundle file from {virtualFiles.Count} virtual files.");
+            LogStatus($"Starting to load bundle file from {virtualFiles.Count} virtual files.");
             startTime.Restart();
             await _assetManager.LoadAsync(virtualFiles, true, progress);
-            LogService.Info($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
-            
             progress.Flush();
+            LogStatus($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
             
-            StatusText = "Loading Assets...";
-            LogService.Info(StatusText);
+            LogStatus("Loading Assets...");
             startTime.Restart();
             ProgressValue = 50;
             var assets = await Task.Run(() =>
@@ -257,9 +208,7 @@ public partial class MainWindowViewModel : ObservableObject
                 .ToList());
 
             foreach (var selectableType in AssetTypes)
-            {
                 selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
-            }
             AssetTypes.Clear();
             
             var all = new SelectableType("All", true);
@@ -279,8 +228,7 @@ public partial class MainWindowViewModel : ObservableObject
                 Filter = FilterAssets
             };
             
-            StatusText = $"Loaded {assets.Count} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.";
-            LogService.Info(StatusText);
+            LogStatus($"Loaded {assets.Count} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.");
            
             ProgressValue = 100;
 
@@ -289,40 +237,16 @@ public partial class MainWindowViewModel : ObservableObject
             var platform = _assetManager.BuildTarget;
             LogService.Info($"Build target: {platform}");
             
-            if (_window != null) 
-                _window.Title = $"{App.AppName} {platform} - {unityVersion}";
+            _window!.Title = $"{App.AppName} {platform} - {unityVersion}";
         }
         catch (Exception ex)
         {
             LogService.Error($"Error occurred: {ex.Message}\n{ex.StackTrace}");
             StatusText = $"Error: {ex.Message.Split('\n').FirstOrDefault()}";
-            throw;
+            //throw;
         }
     }
-
-    [RelayCommand]
-    private void Reset()
-    {
-        if (_window != null)
-            _window.Title = App.AppName;
-        foreach (var selectableType in AssetTypes)
-        {
-            selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
-        }
-        AssetTypes.Clear();
-        _assetFilter.Reset();
-        FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
-        {
-            Filter = FilterAssets
-        };
-        SearchText = string.Empty;
-        _assetManager.Clear();
-        _fileSystem.Clear();
-        UnityAsset.NET.TypeTree.TypeTreeCache.CleanCache();
-        UnityAsset.NET.TypeTree.AssemblyManager.CleanCache();
-        GC.Collect();
-    }
-
+    
     #endregion
 
     #region Options
@@ -331,34 +255,21 @@ public partial class MainWindowViewModel : ObservableObject
     private string _defaultUnityVersion = string.Empty;
 
     [RelayCommand]
-    private async Task SetUnityCNKey()
+    private async Task SetUnityCnKey()
     {
-        if (_window == null)
-        {
-            Console.WriteLine("Window ref not set！");
-            return;
-        }
-
-        /*try
-        {*/
         var viewModel = new UnityCNKeyWindowViewModel();
-        var result = await viewModel.ShowDialogAsync(_window);
+        var result = await viewModel.ShowDialogAsync(_window!);
     
         if (result != null)
         {
             UnityAsset.NET.Setting.DefaultUnityCNKey = result.Key;
         }
-        /*}
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error while open UnityCNKey window: {ex.Message}");
-        }*/
     }
     
     partial void OnDefaultUnityVersionChanged(string value)
     {
         UnityAsset.NET.Setting.DefaultUnityVerion = value;
-        LogService.Debug($"Default Unity Version set to {value}");
+        LogService.Info($"Default Unity Version set to {value}");
     }
     
     [RelayCommand]
@@ -383,6 +294,12 @@ public partial class MainWindowViewModel : ObservableObject
     
         LogService.Info($"Game type set to {value}.");
     }
+    
+    [ObservableProperty]
+    private bool _isPreviewEnabled;
+    
+    [ObservableProperty]
+    private bool _isDumpEnabled;
     
     [RelayCommand]
     private void TogglePreview()
@@ -438,10 +355,35 @@ public partial class MainWindowViewModel : ObservableObject
 
     #region Debug
 
-    public IReadOnlyList<LogLevel> AvailableLevels { get; } = Enum.GetValues<LogLevel>();
+    public IReadOnlyList<SelectableLogLevel> AvailableLevels { get; } = Enum.GetValues<LogLevel>().Select(l => new SelectableLogLevel(l, isEnabled: l != LogLevel.Error)).ToList();
+
+    private bool _internalUpdate;
+    
+    private void OnSelectableLogLevelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SelectableLogLevel.IsSelected) || _internalUpdate)
+            return;
+
+        if (sender is SelectableLogLevel changedItem)
+        {
+            var min = changedItem.IsSelected ? changedItem.Level : (LogLevel)Math.Min((int)changedItem.Level + 1, (int)LogLevel.Error);
+            if (_consoleLogViewModel != null)
+            {
+                _consoleLogViewModel.MinimumLevel = min;
+            }
+            _settings.ConsoleLogLevel = min;
+            _settingsService.SaveSettings(_settings);
+            _internalUpdate = true;
+            foreach (var selectableLogLevel in AvailableLevels)
+            {
+                selectableLogLevel.IsSelected = selectableLogLevel.Level >= min;
+            }
+            _internalUpdate = false;
+        }
+    }
     
     [ObservableProperty]
-    private LogLevel _selectedLogLevel;
+    private bool _isConsoleVisible;
     
     [RelayCommand]
     private void ToggleConsole()
@@ -463,26 +405,16 @@ public partial class MainWindowViewModel : ObservableObject
         _settingsService.SaveSettings(_settings);
     }
 
-    partial void OnSelectedLogLevelChanged(LogLevel value)
-    {
-        if (_consoleLogViewModel != null)
-        {
-            _consoleLogViewModel.MinimumLevel = value;
-        }
-        _settings.ConsoleLogLevel = value;
-        _settingsService.SaveSettings(_settings);
-    }
-
     #endregion
-    
-    private bool _isUpdatingAssetTypes; // Flag to prevent re-entrancy
+
+    #region AssetListView
+
+    private bool _isUpdatingAssetTypes;
 
     private void OnSelectableTypePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(SelectableType.IsSelected) || _isUpdatingAssetTypes)
-        {
             return;
-        }
 
         try
         {
@@ -534,12 +466,37 @@ public partial class MainWindowViewModel : ObservableObject
     {
         return item is AssetWrapper asset && _assetFilter.Matches(asset);
     }
+    
+    partial void OnSelectedAssetChanged(AssetWrapper? value)
+    {
+        if (SelectedFileTab?.Content is not Workspace)
+        {
+            /*if (_prevSelectedAsset?.Size >= 0x1000000)
+            {
+                _prevSelectedAsset?.Release();
+            }
+            _prevSelectedAsset = value;*/
+            if (IsDumpEnabled)
+            {
+                _dumpViewModel?.UpdateDumpContent(SelectedAsset);
+            }
+            SelectedAsset?.OnPropertyChanged(nameof(AssetWrapper.Name));
+            UpdatePreviewControl(value);
+        }
+    }
+
+    #endregion
 
     public MainWindowViewModel()
     {
         FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
         {
             Filter = FilterAssets
+        };
+        
+        FilteredAssetsWorkspace = new DataGridCollectionView(Array.Empty<AssetWrapper>())
+        {
+            Filter = FilterAssetsWorkspace
         };
         
         _settingsService = new SettingsService();
@@ -554,16 +511,17 @@ public partial class MainWindowViewModel : ObservableObject
         IsPreviewEnabled = _settings.EnablePreview;
         IsDumpEnabled = _settings.EnableDump;
         IsConsoleVisible = _settings.EnableConsole;
+
+        _assetsWorkspace = new();
         
         InitializeTabs();
+        foreach (var selectableLogLevel in AvailableLevels)
+            selectableLogLevel.PropertyChanged += OnSelectableLogLevelPropertyChanged;
         if (_consoleLogViewModel != null)
         {
             _consoleLogViewModel.MinimumLevel = _settings.ConsoleLogLevel;
-            SelectedLogLevel = _consoleLogViewModel.MinimumLevel;
         }
-        LogService.Info("Application startup complete.");
-        LogService.Debug("This is a debug message.");
-        LogService.Verbose("This is a verbose message.");
+        AvailableLevels.FirstOrDefault(l => l.Level == _settings.ConsoleLogLevel)!.IsSelected = true;
     }
 
     private IFileSystem CreateFileSystem(Game game)
@@ -571,17 +529,17 @@ public partial class MainWindowViewModel : ObservableObject
         switch (game)
         {
             case Game.Normal:
-                return new DirectFileSystem((filePath, ex, errorMessage) =>
+                return new DirectFileSystem((_, _, errorMessage) =>
                 {
                     LogService.Error(errorMessage);
                 });
             case Game.GF2:
-                return new GfFileSystem((filePath, ex, errorMessage) =>
+                return new GfFileSystem((_, _, errorMessage) =>
                 {
                     LogService.Error(errorMessage);
                 });
             case Game.PerpetualNovelty:
-                return new PerpetualNoveltyFileSystem((filePath, ex, errorMessage) =>
+                return new PerpetualNoveltyFileSystem((_, _, errorMessage) =>
                 {
                     LogService.Error(errorMessage);
                 });
@@ -590,29 +548,14 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedAssetChanged(AssetWrapper? value)
-    {
-        /*if (_prevSelectedAsset?.Size >= 0x1000000)
-        {
-            _prevSelectedAsset?.Release();
-        }
-        _prevSelectedAsset = value;*/
-        if (IsDumpEnabled)
-        {
-            _dumpViewModel?.UpdateDumpContent(SelectedAsset);
-        }
-        SelectedAsset?.OnPropertyChanged(nameof(AssetWrapper.Name));
-        UpdatePreviewControl();
-    }
-
-    private void UpdatePreviewControl()
+    private void UpdatePreviewControl(AssetWrapper? toPreviewAsset = null)
     {
         if (!IsPreviewEnabled)
         {
             PreviewControl = PreviewerFactory.GetPreview(null, _assetManager);
             return;
         }
-        PreviewControl = PreviewerFactory.GetPreview(SelectedAsset, _assetManager);
+        PreviewControl = PreviewerFactory.GetPreview(toPreviewAsset, _assetManager);
     }
     
     private void InitializeTabs()
@@ -633,6 +576,12 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Header = "Asset List",
             Content = new AssetListView { DataContext = this }
+        });
+        
+        FileTabs.Add(new TabItemViewModel
+        {
+            Header = "Workspace",
+            Content = new Workspace { DataContext = this }
         });
         
         _previewTab = new TabItemViewModel
@@ -673,11 +622,6 @@ public partial class MainWindowViewModel : ObservableObject
         SelectedViewTab = ViewTabs.FirstOrDefault();
     }
     
-    public void SetWindow(Window window)
-    {
-        _window = window;
-    }
-    
     [RelayCommand]
     private void About()
     {
@@ -685,118 +629,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SaveImage()
-    {
-        if (_window == null)
-        {
-            LogService.Error("Window reference not set!");
-            return;
-        }
-        
-        var fileType = new FilePickerFileType("Image files")
-        {
-            Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif" ],
-            AppleUniformTypeIdentifiers = [ "public.image" ],
-            MimeTypes = [ "image/*" ]
-        };
-        
-        var file = await _window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save Image",
-            SuggestedFileName = SelectedAsset!.Name,
-            DefaultExtension = "png",
-            ShowOverwritePrompt = true,
-            FileTypeChoices = [ fileType ]
-        });
-        
-        if (file != null)
-        {
-            try
-            {
-                using var image = await Task.Run(
-                    () => {
-                        return SelectedAsset.Value switch
-                        {
-                            ITexture2D texture2D => _assetManager.DecodeTexture2DToImage(texture2D),
-                            ISprite sprite => _assetManager.DecodeSpriteToImage(sprite),
-                            _ => throw new Exception("Unsupported asset type for image saving.")
-                        };
-                        
-                    });
-                await using var stream = await file.OpenWriteAsync();
-                await image.SaveAsPngAsync(stream);
-            
-                StatusText = $"Image saved successfully: {file.Name}";
-                LogService.Info($"Image saved: {file.Path.LocalPath}");
-            }
-            catch (Exception ex)
-            {
-                LogService.Error($"Failed to save image: {ex.Message}");
-            }
-        }
-        else
-        {
-            LogService.Info("Image save canceled.");
-        }
-    }
-
-    [RelayCommand]
-    private async Task ExportObj()
-    {
-        if (_window == null)
-        {
-            LogService.Error("Window reference not set!");
-            return;
-        }
-        
-        var fileType = new FilePickerFileType("Mesh files")
-        {
-            Patterns = [ "*.obj" ],
-            MimeTypes = [ "model/obj", "application/obj" ]
-        };
-        
-        var file = await _window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save Obj",
-            SuggestedFileName = SelectedAsset!.Name,
-            DefaultExtension = "obj",
-            ShowOverwritePrompt = true,
-            FileTypeChoices = [ fileType ]
-        });
-        
-        if (file != null)
-        {
-            try
-            {
-                var meshPreview = PreviewControl as MeshPreview;
-                if (meshPreview == null)
-                    throw new Exception("Current preview is not a mesh.");
-                var processedMesh = meshPreview.MeshData;
-                if (processedMesh == null)
-                    throw new Exception("No mesh data available for export.");
-                
-                string fullPath = file.Path.LocalPath;
-                string directoryName = Path.GetDirectoryName(fullPath)!;
-                string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fullPath);
-                
-                MeshHelper.ExportToObj(processedMesh, directoryName, fileNameWithoutExtension);
-            
-                StatusText = $"obj exported successfully: {file.Name}";
-                LogService.Info($"obj exported: {file.Path.LocalPath}");
-            }
-            catch (Exception ex)
-            {
-                LogService.Error($"Failed to export obj: {ex.Message}");
-            }
-        }
-        else
-        {
-            LogService.Info("Obj export canceled.");
-        }
-    }
-
-    [RelayCommand]
-    public void ShowOriginalFile(AssetWrapper asset)
+    private void ShowOriginalFile(AssetWrapper asset)
     {
         var hasSourceFile = asset.GetVirtualFile(out var file);
 
@@ -804,12 +637,41 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Process.Start("explorer.exe", $"/select,\"{file.Path}\"");
+                Process.Start("explorer.exe", $"/select,\"{file!.Path}\"");
             }
         }
         else
         {
             LogService.Error("No source file linked to selected asset.");
+        }
+    }
+
+    [RelayCommand]
+    private void AddToWorkspace(AssetWrapper asset)
+    {
+        _assetsWorkspace.Add(asset);
+        FilteredAssetsWorkspace = new(_assetsWorkspace)
+        {
+            Filter = FilterAssetsWorkspace
+        };
+        var type = asset.Type;
+        if (AssetTypesWorkspace.All(s => s.TypeName != type))
+        {
+            SelectableType selectableType = new(type, true);
+            selectableType.PropertyChanged += OnSelectableTypeWorkspacePropertyChanged;
+            AssetTypesWorkspace.Add(selectableType);
+        }
+    }
+
+    partial void OnSelectedFileTabChanged(TabItemViewModel? tab)
+    {
+        if (tab?.Content is Workspace)
+        {
+            OnSelectedAssetWorkspaceChanged(SelectedAssetWorkspace);
+        }
+        else if (tab?.Content is AssetListView)
+        {
+            OnSelectedAssetChanged(SelectedAsset);
         }
     }
 }

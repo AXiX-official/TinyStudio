@@ -17,7 +17,6 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
 {
     public string Path { get; }
     public string Name { get; }
-    public long Length { get; }
     public FileType FileType { get; }
 
     private readonly long _offset;
@@ -38,7 +37,6 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
             var header = Header.Parse(reader);
             BundleFile.AlignAfterHeader(reader, header);
         
-            Length = reader.Length;
             _offset = reader.Position;
             _blocksAndDirectoryInfoLength = header.CompressedBlocksInfoSize;
             ((IReader)reader).Advance(1);

@@ -58,7 +58,7 @@ public static class LogService
         Log(LogLevel.Error, message);
     }
 
-    private static void Log(LogLevel level, string message)
+    public static void Log(LogLevel level, string message)
     {
         var logEntry = new LogEntry(level, message);
         Trace.WriteLine(logEntry.ToString()); // Output to debug console

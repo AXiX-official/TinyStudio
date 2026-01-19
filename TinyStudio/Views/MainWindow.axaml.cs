@@ -1,7 +1,6 @@
-using System;
 using System.IO;
 using System.Linq;
-using Avalonia;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -20,33 +19,30 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, MainWindow_Drop);
     }
 
-    private void MainWindow_Drop(object? sender, DragEventArgs e)
+    private async Task MainWindow_Drop(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.Files))
+        if (e.DataTransfer.Contains(DataFormat.File))
         {
-            var files = e.Data.GetFiles();
-            
-            if (files == null) return;
-
-            var allFilePaths = files.SelectMany(file =>
-            {
-                var uri = new Uri(file.Path.ToString());
-                var localPath = uri.LocalPath;
-                
-                if (File.Exists(localPath))
+            var allFilePaths = e.DataTransfer.Items
+                .Select(x => x.TryGetFile()?.Path)
+                .Where(x => x != null)
+                .Select(x => x!.LocalPath)
+                .SelectMany(localPath =>
                 {
-                    return [localPath];
-                }
-                if (Directory.Exists(localPath))
-                {
-                    return Directory.EnumerateFiles(localPath, "*.*", SearchOption.AllDirectories);
-                }
-                return Enumerable.Empty<string>();
-            }).ToList();
+                    if (File.Exists(localPath))
+                    {
+                        return [localPath];
+                    }
+                    if (Directory.Exists(localPath))
+                    {
+                        return Directory.EnumerateFiles(localPath, "*.*", SearchOption.AllDirectories);
+                    }
+                    return [];
+                }).ToList();
 
             if (allFilePaths.Any() && DataContext is MainWindowViewModel viewModel)
             {
-                _ = viewModel.LoadFilesFromPathsAsync(allFilePaths);
+                await viewModel.LoadFilesFromPathsAsync(allFilePaths);
             }
         }
     }
@@ -56,7 +52,7 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             viewModel.SetWindow(this);
-            DataContextChanged -= OnDataContextChanged; // Unsubscribe after setting
+            DataContextChanged -= OnDataContextChanged;
         }
     }
     
