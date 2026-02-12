@@ -56,9 +56,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private TabItemViewModel? _selectedViewTab;
-    
-    [ObservableProperty]
-    private ObservableCollection<IVirtualFile> _loadedFiles;
+
+    [ObservableProperty] 
+    private ObservableCollection<IVirtualFile> _loadedFiles = new();
     
     [ObservableProperty]
     private DataGridCollectionView _filteredAssets;
@@ -190,10 +190,8 @@ public partial class MainWindowViewModel : ObservableObject
             var virtualFiles = await _fileSystem.LoadAsync(pathList, progress);
             progress.Flush();
             LogStatus($"Loaded {pathList.Count} files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
-            
-            LoadedFiles.Clear();
-            foreach (var virtualFile in virtualFiles)
-                LoadedFiles.Add(virtualFile);
+
+            LoadedFiles = new(virtualFiles);
             
             LogStatus($"Starting to load bundle file from {virtualFiles.Count} virtual files.");
             startTime.Restart();
@@ -271,7 +269,7 @@ public partial class MainWindowViewModel : ObservableObject
                 AssetTypes.Add(selectableType);
             }
             
-            FilteredAssets = new DataGridCollectionView(new AvaloniaList<AssetWrapper>(assets))
+            FilteredAssets = new DataGridCollectionView(assets)
             {
                 Filter = FilterAssets
             };
@@ -666,7 +664,6 @@ public partial class MainWindowViewModel : ObservableObject
         _fileSystem = CreateFileSystem(CurrentGame);
         _assetManager = new AssetManager(_fileSystem);
         _previewControl = PreviewerFactory.GetPreview(null, _assetManager);
-        _loadedFiles = new ();
         
         IsPreviewEnabled = _settings.EnablePreview;
         IsDumpEnabled = _settings.EnableDump;

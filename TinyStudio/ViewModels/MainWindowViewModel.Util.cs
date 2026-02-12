@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.Input;
@@ -34,6 +36,10 @@ public partial class MainWindowViewModel
     [RelayCommand]
     private void Reset()
     {
+#if DEBUG
+        var verifier = new ResetVerifier();
+        verifier.CaptureObjects(_assetManager.LoadedFiles.Values);
+#endif
         _window!.Title = App.AppName;
         StatusText = "Ready";
         ProgressValue = 0;
@@ -60,6 +66,41 @@ public partial class MainWindowViewModel
         SearchText = string.Empty;
         
         _assetManager.Clear();
-        //GC.Collect();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+#if DEBUG
+        verifier.VerifyReleased();
+#endif
     }
 }
+
+#if DEBUG
+public class ResetVerifier
+{
+    private WeakReference[] _refs = [];
+
+    public void CaptureObjects(IEnumerable<object> objects)
+    {
+        _refs = objects.Select(o => new WeakReference(o)).ToArray();
+    }
+
+    public void VerifyReleased()
+    {
+        //ForceFullGC();
+
+        int alive = _refs.Count(r => r.IsAlive);
+        if (alive > 0)
+            Console.WriteLine($"Warning: {alive} of {_refs.Length} objects still alive!");
+        else
+            Console.WriteLine("All captured objects released successfully.");
+    }
+
+    private void ForceFullGC()
+    {
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+    }
+}
+#endif

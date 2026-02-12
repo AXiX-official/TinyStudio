@@ -29,7 +29,7 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
         Path = physicalPath;
         Name = System.IO.Path.GetFileName(physicalPath);
         
-        var reader = new CustomStreamReader(new FileStreamProvider(Path));
+        using var reader = new CustomStreamReader(new FileStreamProvider(Path));
 
         var sign = Encoding.UTF8.GetString(reader.ReadBytes(7));
         if (sign == "UnityFS")

@@ -108,11 +108,6 @@ public class GfFileSystem : IFileSystem
 
     public void Clear()
     {
-        LoadedFiles.Clear();
-    }
-
-    public void Dispose()
-    {
-        Clear();
+        LoadedFiles = new();
     }
 }
