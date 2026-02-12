@@ -29,7 +29,7 @@ public class AssetWrapper : INotifyPropertyChanged
 
     public string ToDump => m_Asset.Value.ToPlainText();
     
-    public Endianness Endianness => m_Asset.RawData.Endian;
+    public Endianness Endianness => m_Asset.SourceFile.Header.Endianness;
     
     public SceneNode? SceneNode {get; set;}
 

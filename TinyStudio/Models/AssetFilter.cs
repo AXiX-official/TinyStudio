@@ -68,7 +68,7 @@ public class AssetFilter
     public void Reset()
     {
         _selectAll = true;
-        _selectedTypes.Clear();
+        _selectedTypes = new();
         _regex = null;
     }
 }

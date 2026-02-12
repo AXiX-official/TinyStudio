@@ -37,7 +37,7 @@
                   RowHeight="14"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  SelectionMode="Single"
+                  SelectionMode="Extended"
                   CanUserResizeColumns="True">
             <DataGrid.Styles>
                 <Style Selector="DataGridCell">

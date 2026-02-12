@@ -18,9 +18,9 @@ public partial class MainWindowViewModel
     [ObservableProperty]
     private DataGridCollectionView _filteredAssetsWorkspace;
     
-    private readonly List<AssetWrapper> _assetsWorkspace;
+    private List<AssetWrapper> _assetsWorkspace;
     
-    public ObservableCollection<SelectableType> AssetTypesWorkspace { get; } = new();
+    public ObservableCollection<SelectableType> AssetTypesWorkspace { get; private set; } = new();
     private readonly AssetFilter _assetFilterWorkspace = new();
     
     [ObservableProperty]
@@ -29,12 +29,19 @@ public partial class MainWindowViewModel
     [ObservableProperty]
     private AssetWrapper? _selectedAssetWorkspace;
 
+    [ObservableProperty] 
+    private ObservableCollection<AssetWrapper> _selectedAssetsWorkspace = new();
+
     private void ResetWorkspace()
     {
+        SelectedAssetWorkspace = null;
+        SearchTextWorkspace = string.Empty;
         foreach (var selectableType in AssetTypesWorkspace)
             selectableType.PropertyChanged -= OnSelectableTypeWorkspacePropertyChanged;
-        AssetTypesWorkspace.Clear();
-        _assetsWorkspace.Clear();
+        AssetTypesWorkspace = new();
+        _assetsWorkspace = new();
+        _assetFilterWorkspace.Reset();
+        SelectedAssetsWorkspace = new();
         FilteredAssetsWorkspace = new DataGridCollectionView(Array.Empty<AssetWrapper>())
         {
             Filter = FilterAssetsWorkspace

@@ -10,6 +10,7 @@ using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
 using UnityAsset.NET.IO;
 using UnityAsset.NET.IO.Reader;
+using UnityAsset.NET.IO.Stream;
 
 namespace TinyStudio.Games.PerpetualNovelty;
 
@@ -28,7 +29,7 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
         Path = physicalPath;
         Name = System.IO.Path.GetFileName(physicalPath);
         
-        var reader = new FileStreamReader(Path);
+        var reader = new CustomStreamReader(new FileStreamProvider(Path));
 
         var sign = Encoding.UTF8.GetString(reader.ReadBytes(7));
         if (sign == "UnityFS")
@@ -39,7 +40,7 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
         
             _offset = reader.Position;
             _blocksAndDirectoryInfoLength = header.CompressedBlocksInfoSize;
-            ((IReader)reader).Advance(1);
+            ((IReader)reader).Seek(1, SeekOrigin.Current);
             _key = reader.ReadByte();
         }
         else

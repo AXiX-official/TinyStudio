@@ -3,16 +3,24 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:TinyStudio.ViewModels"
+             xmlns:models="clr-namespace:TinyStudio.Models"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="TinyStudio.Views.SceneHierarchyView"
              x:DataType="vm:MainWindowViewModel">
-    <TreeView Margin="10"
-              ItemsSource="{Binding SceneHierarchyNodes}" 
-              SelectedItems="{Binding SelectedSceneNodes}"
-              SelectionMode="Multiple">
+    <TreeView Margin="5"
+              ItemsSource="{Binding SceneHierarchyNodes}">
         <TreeView.ItemTemplate>
-            <TreeDataTemplate ItemsSource="{Binding SubNodes}">
-                <TextBlock Text="{Binding Name}" />
+            <TreeDataTemplate ItemsSource="{Binding SubNodes}"
+                              DataType="{x:Type models:SceneNode}">
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <CheckBox VerticalAlignment="Center"
+                              Margin="0,0,4,0"
+                              IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding Name}" 
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
             </TreeDataTemplate>
         </TreeView.ItemTemplate>
     </TreeView>

@@ -8,8 +8,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using AssetRipper.Tpk;
-using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -27,6 +25,7 @@ using UnityAsset.NET.Files.SerializedFiles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
 using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
+using UnityAsset.NET.TypeTree.PreDefined.Types;
 
 namespace TinyStudio.ViewModels;
 
@@ -64,7 +63,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private DataGridCollectionView _filteredAssets;
     
-    public ObservableCollection<SelectableType> AssetTypes { get; } = new();
+    public ObservableCollection<SelectableType> AssetTypes { get; private set; } = new();
     private readonly AssetFilter _assetFilter = new();
 
     [ObservableProperty]
@@ -75,7 +74,6 @@ public partial class MainWindowViewModel : ObservableObject
     
     [ObservableProperty]
     private AssetWrapper? _selectedAsset;
-    //private AssetWrapper? _prevSelectedAsset;
     
     [ObservableProperty]
     private int _progressValue;
@@ -84,18 +82,15 @@ public partial class MainWindowViewModel : ObservableObject
     private string _statusText = "Ready";
     
     [ObservableProperty]
-    private ObservableCollection<SceneNode> _sceneHierarchyNodes;
-    
-    [ObservableProperty]
-    private ObservableCollection<SceneNode> _selectedSceneNodes;
+    private ObservableCollection<SceneNode> _sceneHierarchyNodes = new();
+
+    private ObservableCollection<SceneNode> _selectedNodes = new();
 
     #region File
 
     [RelayCommand]
     private async Task LoadFile()
     {
-        Reset();
-        
         var files = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Load File",
@@ -116,8 +111,6 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadFolder()
     {
-        Reset();
-        
         var folders = await _window!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Load Folder",
@@ -139,8 +132,6 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadFileList()
     {
-        Reset();
-        
         var files = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Load FileList",
@@ -210,7 +201,7 @@ public partial class MainWindowViewModel : ObservableObject
             progress.Flush();
             LogStatus($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
 
-            if (_assetManager.NeedTpk)
+            /*if (_assetManager.NeedTpk)
             {
                 if (File.Exists(UnityAsset.NET.Setting.DefaultTpkFilePath))
                 {
@@ -236,7 +227,7 @@ public partial class MainWindowViewModel : ObservableObject
                         return;
                     }
                 }
-            }
+            }*/
             
             LogStatus("Loading Assets...");
             startTime.Restart();
@@ -255,9 +246,15 @@ public partial class MainWindowViewModel : ObservableObject
                     assetWrapperToAssetMap.TryAdd(asset.PathId, wrapper);
                 });
             
+            LogStatus($"Loaded {assets.Length} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.");
+            ProgressValue = 100;
+            progress.Flush();
+            startTime.Restart();
+            
+            LogStatus("Building Scene Hierarchy...");
+            
             await BuildSceneHierarchy(assetWrapperToAssetMap, progress);
             progress.Flush();
-
             foreach (var selectableType in AssetTypes)
                 selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
             AssetTypes.Clear();
@@ -279,15 +276,10 @@ public partial class MainWindowViewModel : ObservableObject
                 Filter = FilterAssets
             };
             
-            LogStatus($"Loaded {assets.Length} Assets in {startTime.Elapsed.TotalSeconds:F2} seconds.");
-           
-            ProgressValue = 100;
-
             var unityVersion = _assetManager.Version;
             LogService.Info($"Unity version: {unityVersion}");
             var platform = _assetManager.BuildTarget;
             LogService.Info($"Build target: {platform}");
-            
             _window!.Title = $"{App.AppName} {platform} - {unityVersion}";
         }
         catch (Exception ex)
@@ -303,7 +295,7 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.Run(() =>
         {
             var nodes = new ConcurrentBag<SceneNode>();
-            var nodeMap = new ConcurrentDictionary<IGameObject, SceneNode>();
+            var nodeMap = new ConcurrentDictionary<GameObject, SceneNode>();
             int progressCount = 0;
             var total = _assetManager.VirtualFileToFileMap.Count;
 
@@ -336,23 +328,20 @@ public partial class MainWindowViewModel : ObservableObject
                 int currentProgress = Interlocked.Increment(ref progressCount);
                 progress?.Report(new LoadProgress($"Build Scene Hierarchy: Processing {vf.Name}", total, currentProgress));
             });
-            
+
             SceneHierarchyNodes = new(nodes);
+            SubscribeToSceneNodeEvents(SceneHierarchyNodes);
         });
     }
 
-    private void BuildSceneHierarchy(SerializedFile sf, ConcurrentDictionary<long, AssetWrapper> map, ConcurrentDictionary<IGameObject, SceneNode> nodeMap, SceneNode parent)
+    private void BuildSceneHierarchy(SerializedFile sf, ConcurrentDictionary<long, AssetWrapper> map, ConcurrentDictionary<GameObject, SceneNode> nodeMap, SceneNode parent)
     {
         foreach (var asset in sf.Assets)
         {
             if (asset.Type == "GameObject")
             {
-                var gameObject = (IGameObject)asset.Value;
-                if (!nodeMap.TryGetValue(gameObject, out var node))
-                {
-                    node = new SceneNode(gameObject.m_Name);
-                    nodeMap.TryAdd(gameObject, node);
-                }
+                var gameObject = (GameObject)asset.Value;
+                var node = nodeMap.GetOrAdd(gameObject, go => new GameObjectNode(go));
                 
                 var parentNode = parent;
 
@@ -361,35 +350,53 @@ public partial class MainWindowViewModel : ObservableObject
                     if (componentPair.component.TryGet(_assetManager, out var component))
                     {
                         map[componentPair.component.m_PathID].SceneNode = node;
-                        if (component is IMeshFilter m_MeshFilter)
+                        switch (component)
                         {
-                            if (m_MeshFilter.m_Mesh.TryGet(_assetManager, out _))
+                            case ITransform t:
                             {
-                                map[m_MeshFilter.m_Mesh.m_PathID].SceneNode = node;
-                            }
-                        }
-                        else if (component is ISkinnedMeshRenderer m_SkinnedMeshRenderer)
-                        {
-                            if (m_SkinnedMeshRenderer.m_Mesh.TryGet(_assetManager, out _))
-                            {
-                                map[m_SkinnedMeshRenderer.m_Mesh.m_PathID].SceneNode = node;
-                            }
-                        }
-                        else if (component is ITransform m_Transform)
-                        {
-                            
-                            
-                            if (m_Transform.m_Father.TryGet(_assetManager, out var m_Father))
-                            {
-                                if (m_Father.m_GameObject.TryGet(_assetManager, out var parentGameObject))
+                                gameObject.m_Transform = t;
+                                if (t.m_Father.TryGet(_assetManager, out var m_Father))
                                 {
-                                    if (!nodeMap.TryGetValue(parentGameObject, out var parentGameObjectNode))
+                                    if (m_Father.m_GameObject.TryGet(_assetManager, out var parentGameObject))
                                     {
-                                        parentGameObjectNode = new SceneNode(parentGameObject.m_Name);
-                                        nodeMap.TryAdd(parentGameObject, parentGameObjectNode);
+                                        parentNode = nodeMap.GetOrAdd(parentGameObject, 
+                                            go => new GameObjectNode(go));
                                     }
-                                    parentNode = parentGameObjectNode;
                                 }
+                                break;
+                            }
+                            case IMeshRenderer mr:
+                            {
+                                gameObject.m_MeshRenderer = mr;
+                                break;
+                            }
+                            case IMeshFilter mf:
+                            {
+                                gameObject.m_MeshFilter = mf;
+                                if (mf.m_Mesh.TryGet(_assetManager, out _))
+                                {
+                                    map[mf.m_Mesh.m_PathID].SceneNode = node;
+                                }
+                                break;
+                            }
+                            case ISkinnedMeshRenderer smr:
+                            {
+                                gameObject.m_SkinnedMeshRenderer = smr;
+                                if (smr.m_Mesh.TryGet(_assetManager, out _))
+                                {
+                                    map[smr.m_Mesh.m_PathID].SceneNode = node;
+                                }
+                                break;
+                            }
+                            case IAnimator animator:
+                            {
+                                gameObject.m_Animator = animator;
+                                break;
+                            }
+                            case IAnimation animation:
+                            {
+                                gameObject.m_Animation = animation;
+                                break;
                             }
                         }
                     }
@@ -825,6 +832,37 @@ public partial class MainWindowViewModel : ObservableObject
         else if (value?.Content is AssetListView)
         {
             OnSelectedAssetChanged(SelectedAsset);
+        }
+    }
+
+    private void SubscribeToSceneNodeEvents(IEnumerable<SceneNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            node.PropertyChanged += SceneNode_PropertyChanged;
+            if (node.IsChecked == true)
+            {
+                _selectedNodes.Add(node);
+            }
+            SubscribeToSceneNodeEvents(node.SubNodes);
+        }
+    }
+
+    private void SceneNode_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SceneNode.IsChecked) && sender is SceneNode node)
+        {
+            if (node.IsChecked == true)
+            {
+                if (!_selectedNodes.Contains(node))
+                {
+                    _selectedNodes.Add(node);
+                }
+            }
+            else
+            {
+                _selectedNodes.Remove(node);
+            }
         }
     }
 }

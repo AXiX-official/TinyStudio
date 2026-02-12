@@ -51,6 +51,8 @@ public class SlicedStream : Stream
     {
         _baseStream.Seek(_startOffset + _position, SeekOrigin.Begin);
         _position++;
+        if (Position >= _length)
+            throw new EndOfStreamException();
         return _baseStream.ReadByte();
     }
 
@@ -66,6 +68,8 @@ public class SlicedStream : Stream
         _baseStream.Seek(_startOffset + _position, SeekOrigin.Begin);
         int bytesRead = _baseStream.Read(buffer, offset, count);
         _position += bytesRead;
+        if (Position >= _length)
+            throw new EndOfStreamException();
         return bytesRead;
     }
 

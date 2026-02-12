@@ -42,7 +42,7 @@ public class GfFileSystem : IFileSystem
                     if (fs.Length >= 3)
                     {
                         var header = reader.ReadBytes(3);
-                        reader.Seek(0);
+                        ((IReader)reader).Seek(0);
                         if (header[0] == 'G' && header[1] == 'F' && header[2] == 'F') continue;
                     }
 
