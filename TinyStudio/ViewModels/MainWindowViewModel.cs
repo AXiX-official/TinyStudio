@@ -13,7 +13,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using TinyStudio.Games.GF;
+using TinyStudio.Games.GF2;
 using TinyStudio.Games.PerpetualNovelty;
 using TinyStudio.Models;
 using TinyStudio.Service;
@@ -58,7 +58,7 @@ public partial class MainWindowViewModel : ObservableObject
     private TabItemViewModel? _selectedViewTab;
 
     [ObservableProperty] 
-    private ObservableCollection<IVirtualFile> _loadedFiles = new();
+    private ObservableCollection<IVirtualFileInfo> _loadedFiles = new();
     
     [ObservableProperty]
     private DataGridCollectionView _filteredAssets;
@@ -198,34 +198,6 @@ public partial class MainWindowViewModel : ObservableObject
             await _assetManager.LoadAsync(virtualFiles, true, progress);
             progress.Flush();
             LogStatus($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
-
-            /*if (_assetManager.NeedTpk)
-            {
-                if (File.Exists(UnityAsset.NET.Setting.DefaultTpkFilePath))
-                {
-                    await _assetManager.LoadTpkFile(UnityAsset.NET.Setting.DefaultTpkFilePath, progress: progress);
-                }
-                else
-                {
-                    var file = await _window!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                    {
-                        Title = "Load Tpk file",
-                        AllowMultiple = false,
-                        FileTypeFilter = [new("Tpk") { Patterns = [ "*.tpk" ] }]
-                    });
-        
-                    if (file.Any())
-                    {
-                        await _assetManager.LoadTpkFile(file[0].Path.LocalPath, progress: progress);
-                    }
-                    else
-                    {
-                        LogStatus("Tpk loading canceled.");
-                        Reset();
-                        return;
-                    }
-                }
-            }*/
             
             LogStatus("Loading Assets...");
             startTime.Restart();
@@ -691,7 +663,7 @@ public partial class MainWindowViewModel : ObservableObject
                     LogService.Error(errorMessage);
                 });
             case Game.GF2:
-                return new GfFileSystem((_, _, errorMessage) =>
+                return new Gf2FileSystem((_, _, errorMessage) =>
                 {
                     LogService.Error(errorMessage);
                 });

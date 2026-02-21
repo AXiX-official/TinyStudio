@@ -6,28 +6,27 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityAsset.NET;
 using UnityAsset.NET.FileSystem;
-using UnityAsset.NET.IO;
-using UnityAsset.NET.IO.Reader;
+using UnityAsset.NET.FileSystem.DirectFileSystem;
 
-namespace TinyStudio.Games.GF;
+namespace TinyStudio.Games.GF2;
 
-public class GfFileSystem : IFileSystem
+public class Gf2FileSystem : IFileSystem
 {
     private static readonly byte[] OriginalHeader = [ 0x55, 0x6E, 0x69, 0x74, 0x79, 0x46, 0x53, 0x00, 0x00, 0x00, 0x00, 0x07, 0x35, 0x2E, 0x78, 0x2E ];
 
     public IFileSystem.ErrorHandler? OnError { get; set; }
-    public List<IVirtualFile> LoadedFiles { get; private set; } = new();
+    public List<IVirtualFileInfo> LoadedFiles { get; private set; } = new();
 
-    public GfFileSystem(IFileSystem.ErrorHandler? onError)
+    public Gf2FileSystem(IFileSystem.ErrorHandler? onError)
     {
         OnError = onError;
     }
 
-    public Task<List<IVirtualFile>> LoadAsync(List<string> paths, IProgress<LoadProgress>? progress = null)
+    public Task<List<IVirtualFileInfo>> LoadAsync(List<string> paths, IProgress<LoadProgress>? progress = null)
     {
         return Task.Run(() =>
         {
-            var allFiles = new List<IVirtualFile>();
+            var allFiles = new List<IVirtualFileInfo>();
             var totalFiles = paths.Count;
             for (int i = 0; i < totalFiles; i++)
             {
@@ -36,20 +35,19 @@ public class GfFileSystem : IFileSystem
                 {
                     if (!path.EndsWith(".bundle")) continue;
 
-                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    using var reader = new CustomStreamReader(fs);
+                    var fileInfo = new DirectFileInfo(path);
+                    var file = fileInfo.GetFile();
 
-                    if (fs.Length >= 3)
+                    if (file.Length >= 3)
                     {
-                        var header = reader.ReadBytes(3);
-                        ((IReader)reader).Seek(0);
+                        var header = file.ReadBytes(3);
+                        file.Position = 0;
                         if (header[0] == 'G' && header[1] == 'F' && header[2] == 'F') continue;
                     }
 
-                    while (reader.Position < reader.Length)
+                    while (file.Position < file.Length)
                     {
-                        var file = ParseEntry(path, reader);
-                        allFiles.Add(file);
+                        allFiles.Add(ParseEntry(path, file));
                     }
                 }
                 catch (Exception ex)
@@ -64,28 +62,27 @@ public class GfFileSystem : IFileSystem
         });
     }
 
-    private GfVirtualFile ParseEntry(string physicalPath, IReader reader)
+    private Gf2VirtualFileInfo ParseEntry(string physicalPath, IVirtualFile file)
     {
-        var entryOffset = reader.Position;
-        var key = reader.ReadBytes(0x10);
+        var entryOffset = file.Position;
+        var key = file.ReadBytes(0x10);
         long fileSize = 0;
         bool isEncrypted = !key.SequenceEqual(OriginalHeader);
 
         if (!isEncrypted)
         {
-            reader.Seek(entryOffset + 30);
-            fileSize = BinaryPrimitives.ReadInt64BigEndian(reader.ReadBytes(8));
+            file.Position = entryOffset + 30;
+            fileSize = BinaryPrimitives.ReadInt64BigEndian(file.ReadBytes(8));
         }
         else
         {
-            var keySpan = key.AsSpan();
             for (int i = 0; i < key.Length; i++)
             {
-                keySpan[i] = (byte)(keySpan[i] ^ OriginalHeader[i]);
+                key[i] = (byte)(key[i] ^ OriginalHeader[i]);
             }
 
-            reader.Seek(entryOffset + 30);
-            var fileSizeData = reader.ReadBytes(8);
+            file.Position = entryOffset + 30;
+            var fileSizeData = file.ReadBytes(8);
             for (int i = 0; i < 8; i++)
             {
                 fileSizeData[i] ^= key[(i + 30) % 0x10];
@@ -93,15 +90,15 @@ public class GfFileSystem : IFileSystem
             fileSize = BinaryPrimitives.ReadInt64BigEndian(fileSizeData);
         }
 
-        if (entryOffset + fileSize > reader.Length)
+        if (entryOffset + fileSize > file.Length)
         {
-            throw new Exception($"Invalid file size({fileSize:X8}) at offset {entryOffset:X8} in {physicalPath}, exceeds file length({reader.Length:X8}).");
+            throw new Exception($"Invalid file size({fileSize:X8}) at offset {entryOffset:X8} in {physicalPath}, exceeds file length({file.Length:X8}).");
         }
 
         var virtualFileName = $"{Path.GetFileName(physicalPath)}_{entryOffset:X8}";
-        var virtualFile = new GfVirtualFile(physicalPath, virtualFileName, entryOffset, fileSize, key, isEncrypted);
+        var virtualFile = new Gf2VirtualFileInfo(file.Handle, physicalPath, virtualFileName, entryOffset, fileSize, key, isEncrypted);
 
-        reader.Seek(entryOffset + fileSize);
+        file.Position = entryOffset + fileSize;
 
         return virtualFile;
     }

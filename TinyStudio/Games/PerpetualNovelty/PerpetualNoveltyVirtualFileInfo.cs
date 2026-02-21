@@ -1,8 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
-using TinyStudio.Games.GF;
-using TinyStudio.IO;
+using Microsoft.Win32.SafeHandles;
 using UnityAsset.NET.Enums;
 using UnityAsset.NET.Files;
 using UnityAsset.NET.Files.BundleFiles;
@@ -10,26 +9,29 @@ using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
 using UnityAsset.NET.IO;
 using UnityAsset.NET.IO.Reader;
-using UnityAsset.NET.IO.Stream;
 
 namespace TinyStudio.Games.PerpetualNovelty;
 
-public class PerpetualNoveltyVirtualFile : IVirtualFile
+public class PerpetualNoveltyVirtualFileInfo : IVirtualFileInfo
 {
+    public SafeFileHandle Handle { get; }
     public string Path { get; }
     public string Name { get; }
+    public long Length { get; }
     public FileType FileType { get; }
 
     private readonly long _offset;
     private readonly byte _key;
     private readonly UInt32 _blocksAndDirectoryInfoLength;
 
-    public PerpetualNoveltyVirtualFile(string physicalPath)
+    public PerpetualNoveltyVirtualFileInfo(string physicalPath)
     { 
         Path = physicalPath;
         Name = System.IO.Path.GetFileName(physicalPath);
+        Length = new FileInfo(physicalPath).Length;
+        Handle = File.OpenHandle(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         
-        using var reader = new CustomStreamReader(new FileStreamProvider(Path));
+        var reader = new CustomFileReader(this);
 
         var sign = Encoding.UTF8.GetString(reader.ReadBytes(7));
         if (sign == "UnityFS")
@@ -49,17 +51,13 @@ public class PerpetualNoveltyVirtualFile : IVirtualFile
         }
     }
 
-    public Stream OpenStream()
+    public IVirtualFile GetFile()
     {
-        switch (FileType)
+        return FileType switch
         {
-            case FileType.BundleFile:
-            {
-                var fileStream = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                return new PerpetualNoveltyStream(fileStream, _offset, _blocksAndDirectoryInfoLength, _key);
-            }
-            default:
-                return new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        }
+            FileType.BundleFile => new PerpetualNoveltyFile(Handle, 0, Length, _offset, _blocksAndDirectoryInfoLength,
+                _key),
+            _ => new DirectFile(Handle, 0, Length),
+        };
     }
 }

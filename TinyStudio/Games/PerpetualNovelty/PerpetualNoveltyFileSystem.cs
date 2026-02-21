@@ -10,25 +10,25 @@ namespace TinyStudio.Games.PerpetualNovelty;
 public class PerpetualNoveltyFileSystem : IFileSystem
 {
     public IFileSystem.ErrorHandler? OnError { get; set; }
-    public List<IVirtualFile> LoadedFiles { get; private set; } = new();
+    public List<IVirtualFileInfo> LoadedFiles { get; private set; } = new();
 
     public PerpetualNoveltyFileSystem(IFileSystem.ErrorHandler? onError)
     {
         OnError = onError;
     }
     
-    public Task<List<IVirtualFile>> LoadAsync(List<string> paths, IProgress<LoadProgress>? progress = null)
+    public Task<List<IVirtualFileInfo>> LoadAsync(List<string> paths, IProgress<LoadProgress>? progress = null)
     {
         return Task.Run(() =>
         {
-            var files = new List<IVirtualFile>();
+            var files = new List<IVirtualFileInfo>();
             var totalFiles = paths.Count;
             for (int i = 0; i < totalFiles; i++)
             {
                 var path = paths[i];
                 try
                 {
-                    var file = new PerpetualNoveltyVirtualFile(path);
+                    var file = new PerpetualNoveltyVirtualFileInfo(path);
                     progress?.Report(new LoadProgress($"DirectFileSystem: Loading {file.Name}", totalFiles, i));
                     if (file.FileType != FileType.Unknown)
                         files.Add(file);

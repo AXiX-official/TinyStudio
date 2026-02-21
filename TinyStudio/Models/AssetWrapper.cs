@@ -37,20 +37,15 @@ public class AssetWrapper : INotifyPropertyChanged
     {
         m_Asset = asset;
     }
-
-    public void Release()
-    {
-        m_Asset.Release();
-    }
     
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public void OnPropertyChanged(string propertyName)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
-    public bool GetVirtualFile([NotNullWhen(true)] out IVirtualFile? file)
+    public bool GetVirtualFile([NotNullWhen(true)] out IVirtualFileInfo? file)
     {
-        file = m_Asset.SourceFile?.SourceVirtualFile;
+        file = m_Asset.SourceFile?.SourceVirtualFileInfo;
         return file != null;
     }
 }
