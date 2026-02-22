@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using Microsoft.Win32.SafeHandles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
@@ -11,12 +10,13 @@ public class PerpetualNoveltyFile : DirectFile
     private readonly byte _key;
     private readonly long _blocksAndDirectoryInfoOffset;
     private readonly long _blocksAndDirectoryInfoEnd;
+    private static readonly long EncryptLength = 73;
 
     public PerpetualNoveltyFile(SafeFileHandle handle, long start, long length, long offset, UInt32 blocksAndDirectoryInfoLength, byte key)
         : base(handle, start, length)
     {
         _blocksAndDirectoryInfoOffset = offset;
-        _blocksAndDirectoryInfoEnd = offset + Math.Min(68, blocksAndDirectoryInfoLength);
+        _blocksAndDirectoryInfoEnd = offset + Math.Min(EncryptLength, blocksAndDirectoryInfoLength);
         _key = key;
     }
 
