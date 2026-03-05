@@ -2,9 +2,7 @@
 using System.IO;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
-using UnityAsset.NET.Enums;
-using UnityAsset.NET.Files;
-using UnityAsset.NET.Files.BundleFiles;
+using UnityAsset.NET.BundleFiles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
 using UnityAsset.NET.IO;

@@ -9,6 +9,7 @@ namespace TinyStudio.Games.PerpetualNovelty;
 
 public class PerpetualNoveltyFileSystem : IFileSystem
 {
+    public bool RecordUnknownFiles { get; set; }
     public IFileSystem.ErrorHandler? OnError { get; set; }
     public List<IVirtualFileInfo> LoadedFiles { get; private set; } = new();
 
@@ -30,7 +31,7 @@ public class PerpetualNoveltyFileSystem : IFileSystem
                 {
                     var file = new PerpetualNoveltyVirtualFileInfo(path);
                     progress?.Report(new LoadProgress($"DirectFileSystem: Loading {file.Name}", totalFiles, i));
-                    if (file.FileType != FileType.Unknown)
+                    if (file.FileType != FileType.Unknown || RecordUnknownFiles)
                         files.Add(file);
                 }
                 catch (Exception ex)

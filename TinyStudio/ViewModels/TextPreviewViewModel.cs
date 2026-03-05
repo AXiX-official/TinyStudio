@@ -1,7 +1,7 @@
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
+using UnityAsset.NET.Types.PreDefined.Interfaces;
 
 namespace TinyStudio.ViewModels;
 

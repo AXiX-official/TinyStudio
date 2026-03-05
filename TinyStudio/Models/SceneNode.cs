@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
-using UnityAsset.NET.TypeTree.PreDefined.Types;
+using UnityAsset.NET.Types.PreDefined.Types;
 
 namespace TinyStudio.Models;
 

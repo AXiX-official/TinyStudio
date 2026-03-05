@@ -13,7 +13,7 @@ using TinyStudio.Views;
 using UnityAsset.NET;
 using UnityAsset.NET.AssetHelper;
 using UnityAsset.NET.Enums;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
+using UnityAsset.NET.Types.PreDefined.Interfaces;
 
 namespace TinyStudio.Previewer;
 

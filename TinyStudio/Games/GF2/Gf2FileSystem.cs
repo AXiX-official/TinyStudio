@@ -13,7 +13,7 @@ namespace TinyStudio.Games.GF2;
 public class Gf2FileSystem : IFileSystem
 {
     private static readonly byte[] OriginalHeader = [ 0x55, 0x6E, 0x69, 0x74, 0x79, 0x46, 0x53, 0x00, 0x00, 0x00, 0x00, 0x07, 0x35, 0x2E, 0x78, 0x2E ];
-
+    public bool RecordUnknownFiles { get; set; }
     public IFileSystem.ErrorHandler? OnError { get; set; }
     public List<IVirtualFileInfo> LoadedFiles { get; private set; } = new();
 
@@ -33,7 +33,11 @@ public class Gf2FileSystem : IFileSystem
                 var path = paths[i];
                 try
                 {
-                    if (!path.EndsWith(".bundle")) continue;
+                    if (!path.EndsWith(".bundle"))
+                    {
+                        if (RecordUnknownFiles) allFiles.Add(new DirectFileInfo(path));
+                        else continue;
+                    }
 
                     var fileInfo = new DirectFileInfo(path);
                     var file = fileInfo.GetFile();

@@ -7,7 +7,7 @@ using SixLabors.ImageSharp;
 using TinyStudio.Models;
 using TinyStudio.Views;
 using UnityAsset.NET.AssetHelper;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
+using UnityAsset.NET.Types.PreDefined.Interfaces;
 
 namespace TinyStudio.ViewModels;
 

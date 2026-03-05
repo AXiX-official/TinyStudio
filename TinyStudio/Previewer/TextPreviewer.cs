@@ -3,7 +3,7 @@ using TinyStudio.Models;
 using TinyStudio.ViewModels;
 using TinyStudio.Views;
 using UnityAsset.NET;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
+using UnityAsset.NET.Types.PreDefined.Interfaces;
 
 namespace TinyStudio.Previewer;
 

@@ -1,9 +1,9 @@
 ﻿    using System.ComponentModel;
     using System.Diagnostics.CodeAnalysis;
     using UnityAsset.NET;
-    using UnityAsset.NET.Enums;
     using UnityAsset.NET.FileSystem;
-    using UnityAsset.NET.TypeTree.PreDefined;
+    using UnityAsset.NET.IO;
+    using UnityAsset.NET.Types.PreDefined;
 
 namespace TinyStudio.Models;
 

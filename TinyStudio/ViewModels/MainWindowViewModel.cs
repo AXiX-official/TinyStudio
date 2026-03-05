@@ -20,12 +20,12 @@ using TinyStudio.Service;
 using TinyStudio.Previewer;
 using TinyStudio.Views;
 using UnityAsset.NET;
-using UnityAsset.NET.Files;
+using UnityAsset.NET.BundleFiles;
 using UnityAsset.NET.Files.SerializedFiles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
-using UnityAsset.NET.TypeTree.PreDefined.Interfaces;
-using UnityAsset.NET.TypeTree.PreDefined.Types;
+using UnityAsset.NET.Types.PreDefined.Interfaces;
+using UnityAsset.NET.Types.PreDefined.Types;
 
 namespace TinyStudio.ViewModels;
 
