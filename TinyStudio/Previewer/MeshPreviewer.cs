@@ -49,8 +49,17 @@ public class MeshPreviewer : IPreviewer
             .Zip(processedMesh.m_Normals.Chunk(3))
             .SelectMany(tuple => tuple.First.Concat(tuple.Second))
             .ToArray();
-        
-        var vbData = MemoryMarshal.AsBytes(vertices.ToArray().AsSpan()).ToArray();
+
+        // Unity is left handed, OpenGL is right handed: mirror X on the CPU so the vertices,
+        // the normals and the bounds all live in the same (rendering) space.
+        for (var i = 0; i < vertices.Length; i += 6)
+        {
+            vertices[i] = -vertices[i];
+            vertices[i + 3] = -vertices[i + 3];
+        }
+
+        var positionStep = 6;
+        var vbData = MemoryMarshal.AsBytes(vertices.AsSpan()).ToArray();
         var ibData = MemoryMarshal.AsBytes(indices.ToArray().AsSpan()).ToArray();
         
         var layout = new VertexLayout([
@@ -62,7 +71,8 @@ public class MeshPreviewer : IPreviewer
             layout,
             new VertexBuffer(vbData, processedMesh.m_VertexCount),
             new IndexBuffer(ibData, indices.Count),
-            [ new SubMesh(0, indices.Count, 0) ]
+            [ new SubMesh(0, indices.Count, 0) ],
+            BoundingBox.FromVertices(vertices, positionStep)
         );
     }
 }

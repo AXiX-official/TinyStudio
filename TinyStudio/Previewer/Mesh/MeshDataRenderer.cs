@@ -33,6 +33,12 @@ public sealed unsafe class MeshDataRenderer : IDisposable
     private int _vertexShader;
     private int _fragmentShader;
     private int _shaderProgram;
+    private int _modelLoc;
+    private int _viewLoc;
+    private int _projectionLoc;
+    private int _cameraPosXLoc;
+    private int _cameraPosYLoc;
+    private int _cameraPosZLoc;
     
     public MeshDataRenderer(GlInterface gl, MeshData? mesh = null)
     {
@@ -71,15 +77,14 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                               uniform mat4 uView;
                               
                               out vec3 FragNormal;
+                              out vec3 FragPos;
 
                               void main()
                               {
-                                  vec3 fixedPos = aPos;
-                                  fixedPos.x = -fixedPos.x;
-                                  vec3 fixedNormal = aNormal;
-                                  fixedNormal.x = -fixedNormal.x;
-                                  gl_Position = uProjection * uView * uModel * vec4(fixedPos, 1.0);
-                                  FragNormal = mat3(transpose(inverse(uModel))) * fixedNormal;
+                                  vec4 worldPos = uModel * vec4(aPos, 1.0);
+                                  gl_Position = uProjection * uView * worldPos;
+                                  FragNormal = mat3(uModel) * aNormal;
+                                  FragPos = worldPos.xyz;
                               }
                           """;
 
@@ -88,29 +93,45 @@ public sealed unsafe class MeshDataRenderer : IDisposable
                               precision mediump float;
                               
                               in vec3 FragNormal;
+                              in vec3 FragPos;
                               
                               out vec4 FragColor;
                               
                               uniform float uDirectionalLightDirX;
                               uniform float uDirectionalLightDirY;
                               uniform float uDirectionalLightDirZ;
-                              
-                              uniform float uDirectionalLightColoR;
-                              uniform float uDirectionalLightColoG;
-                              uniform float uDirectionalLightColoB;
+                              uniform float uSpecularStrength;
+                              uniform float uShininess;
+                              uniform float uCameraPosX;
+                              uniform float uCameraPosY;
+                              uniform float uCameraPosZ;
 
                               void main()
                               {
-                                  vec3 uDirectionalLightDir = vec3(uDirectionalLightDirX, uDirectionalLightDirY, uDirectionalLightDirZ);
-                                  vec3 uDirectionalLightColor = vec3(uDirectionalLightColoR, uDirectionalLightColoG, uDirectionalLightColoB);
-                                  
+                                  vec3 lightDirection = normalize(vec3(
+                                      uDirectionalLightDirX,
+                                      uDirectionalLightDirY,
+                                      uDirectionalLightDirZ));
+                                  vec3 cameraPos = vec3(uCameraPosX, uCameraPosY, uCameraPosZ);
+
                                   vec3 normal = normalize(FragNormal);
-                                  vec3 lightDirection = normalize(uDirectionalLightDir) * 0.8;
-                                  
+                                  vec3 viewDir = normalize(cameraPos - FragPos);
+
                                   float diff = max(dot(normal, lightDirection), 0.0);
-                                  vec3 diffuse = diff * uDirectionalLightColor + 0.3;
-                          
-                                  FragColor = vec4(diffuse, 1.0);
+
+                                  // Half vector between light and view: this is what makes the
+                                  // highlight slide across the surface as the view angle changes.
+                                  vec3 halfDir = normalize(lightDirection + viewDir);
+                                  float spec = pow(max(dot(normal, halfDir), 0.0), uShininess);
+
+                                  // Keep the highlight off geometry that faces away from the light.
+                                  spec *= step(0.0001, diff);
+
+                                  vec3 ambient = vec3(0.30);
+                                  vec3 diffuse = vec3(0.55) * diff;
+                                  vec3 specular = vec3(uSpecularStrength) * spec;
+
+                                  FragColor = vec4(ambient + diffuse + specular, 1.0);
                               }
                           """;
 
@@ -131,6 +152,21 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         
         _gl.DeleteShader(_vertexShader);
         _gl.DeleteShader(_fragmentShader);
+
+        _modelLoc = _gl.GetUniformLocationString(_shaderProgram, "uModel");
+        _viewLoc = _gl.GetUniformLocationString(_shaderProgram, "uView");
+        _projectionLoc = _gl.GetUniformLocationString(_shaderProgram, "uProjection");
+        _cameraPosXLoc = _gl.GetUniformLocationString(_shaderProgram, "uCameraPosX");
+        _cameraPosYLoc = _gl.GetUniformLocationString(_shaderProgram, "uCameraPosY");
+        _cameraPosZLoc = _gl.GetUniformLocationString(_shaderProgram, "uCameraPosZ");
+
+        // Fixed light in object space, so the shading stays attached to the mesh while it turns.
+        _gl.UseProgram(_shaderProgram);
+        _gl.Uniform1f(_gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirX"), -1.0f);
+        _gl.Uniform1f(_gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirY"), -1.0f);
+        _gl.Uniform1f(_gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirZ"), -0.7f);
+        _gl.Uniform1f(_gl.GetUniformLocationString(_shaderProgram, "uSpecularStrength"), 0.6f);
+        _gl.Uniform1f(_gl.GetUniformLocationString(_shaderProgram, "uShininess"), 32.0f);
     }
     
     private void UploadMesh(MeshData mesh)
@@ -192,7 +228,12 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         _ => throw new NotSupportedException()
     };
     
-    public void Render(PixelSize size, Vector3 cameraPos, Vector3 cameraTarget)
+    /// <summary>
+    /// Draws the mesh with a fixed camera: <paramref name="model"/> carries the user's orbit
+    /// rotation, so the mesh spins in place and the shading turns with it instead of the viewpoint
+    /// sliding around a world-locked light.
+    /// </summary>
+    public void Render(PixelSize size, Matrix4x4 model, Vector3 cameraPos, Vector3 cameraTarget, float fovY = MathF.PI / 4f)
     {
         if (_dirtyMark)
             UploadMesh(_mesh!);
@@ -212,33 +253,22 @@ public sealed unsafe class MeshDataRenderer : IDisposable
         
         CheckError(_gl);
         
-        var projection =
-            Matrix4x4.CreatePerspectiveFieldOfView((float)(Math.PI / 4), size.Width / (float)size.Height,
-                0.01f, 1000);
+        var aspect = size.Height > 0 ? size.Width / (float)size.Height : 1f;
+        var distance = Vector3.Distance(cameraPos, cameraTarget);
+        var near = MathF.Max(distance * 0.01f, 0.001f);
+        var far = MathF.Max(distance * 100f, near * 1000f);
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
+            Math.Clamp(fovY, 0.05f, MathF.PI - 0.05f), aspect, near, far);
 
+        var view = Matrix4x4.CreateLookAt(cameraPos, cameraTarget, Vector3.UnitY);
+        _gl.UniformMatrix4fv(_modelLoc, 1, false, &model);
+        _gl.UniformMatrix4fv(_viewLoc, 1, false, &view);
+        _gl.UniformMatrix4fv(_projectionLoc, 1, false, &projection);
 
-        var view = Matrix4x4.CreateLookAt(cameraPos, cameraTarget, new Vector3(0, 1, 0));
-        var model = Matrix4x4.Identity;
-        var modelLoc = _gl.GetUniformLocationString(_shaderProgram, "uModel");
-        var viewLoc = _gl.GetUniformLocationString(_shaderProgram, "uView");
-        var projectionLoc = _gl.GetUniformLocationString(_shaderProgram, "uProjection");
-        _gl.UniformMatrix4fv(modelLoc, 1, false, &model);
-        _gl.UniformMatrix4fv(viewLoc, 1, false, &view);
-        _gl.UniformMatrix4fv(projectionLoc, 1, false, &projection);
-        
-        // no Uniform3f binding
-        var directionalLightDirXLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirX");
-        var directionalLightDirYLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirY");
-        var directionalLightDirZLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightDirZ");
-        var directionalLightColorRLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightColoR");
-        var directionalLightColorGLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightColoG");
-        var directionalLightColorBLoc = _gl.GetUniformLocationString(_shaderProgram, "uDirectionalLightColoB");
-        _gl.Uniform1f(directionalLightDirXLoc, -1.0f);
-        _gl.Uniform1f(directionalLightDirYLoc, -1.0f);
-        _gl.Uniform1f(directionalLightDirZLoc, -0.7f);
-        _gl.Uniform1f(directionalLightColorRLoc, 1.0f);
-        _gl.Uniform1f(directionalLightColorGLoc, 1.0f);
-        _gl.Uniform1f(directionalLightColorBLoc, 1.0f);
+        // Needed by the specular term: the highlight depends on where the eye is, not just the light.
+        _gl.Uniform1f(_cameraPosXLoc, cameraPos.X);
+        _gl.Uniform1f(_cameraPosYLoc, cameraPos.Y);
+        _gl.Uniform1f(_cameraPosZLoc, cameraPos.Z);
         
         CheckError(_gl);
         

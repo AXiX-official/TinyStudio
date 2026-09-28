@@ -23,6 +23,7 @@ public partial class MeshPreview : UserControl
             }
             var meshData = MeshPreviewer.GetMeshData(_processedMesh!);
             _meshView.MeshData = meshData;
+            _meshView.ResetCamera();
         }
     }
         

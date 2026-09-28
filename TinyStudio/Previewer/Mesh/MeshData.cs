@@ -9,6 +9,31 @@ public struct BoundingBox
 {
     public Vector3 Min;
     public Vector3 Max;
+
+    public static BoundingBox FromVertices(float[] vertices, int step = 3)
+    {
+        if (vertices.Length < step)
+            return new BoundingBox { Min = Vector3.Zero, Max = Vector3.Zero };
+
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+
+        for (var i = 0; i + step - 1 < vertices.Length; i += step)
+        {
+            var v = new Vector3(vertices[i], vertices[i + 1], vertices[i + 2]);
+            min = Vector3.Min(min, v);
+            max = Vector3.Max(max, v);
+        }
+
+        return new BoundingBox { Min = min, Max = max };
+    }
+
+    public Vector3 Center => (Min + Max) * 0.5f;
+
+    public Vector3 Size => Max - Min;
+
+    /// <summary>Radius of the bounding sphere enclosing the box.</summary>
+    public float Radius => Size.Length() * 0.5f;
 }
 
 public enum VertexSemantic
@@ -107,18 +132,20 @@ public sealed class MeshData
     public IndexBuffer IndexBuffer { get; }
     public IReadOnlyList<SubMesh> SubMeshes { get; }
 
-    //public BoundingBox Bounds { get; }
+    /// <summary>Bounds of the mesh in the coordinate space used for rendering.</summary>
+    public BoundingBox Bounds { get; }
 
     public MeshData(
         VertexLayout layout,
         VertexBuffer vb,
         IndexBuffer ib,
-        IReadOnlyList<SubMesh> subMeshes)
+        IReadOnlyList<SubMesh> subMeshes,
+        BoundingBox bounds = default)
     {
         Layout = layout;
         VertexBuffer = vb;
         IndexBuffer = ib;
         SubMeshes = subMeshes;
-        //Bounds = bounds;
+        Bounds = bounds;
     }
 }
