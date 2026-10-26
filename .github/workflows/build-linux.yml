@@ -17,10 +17,10 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Setup .NET 10.0
+      - name: Setup .NET 11.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
           
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -33,11 +33,11 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore TinyStudio/TinyStudio.csproj
 
-      - name: Build and publish for .NET 10
-        run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r linux-x64 -o ./publish-net10
+      - name: Build and publish for .NET 11
+        run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net11.0 -r linux-x64 -o ./publish-net11
 
-      - name: Upload .NET 10 linux-x64 Artifact
+      - name: Upload .NET 11 linux-x64 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TinyStudio-net10-linux-x64
-          path: ./publish-net10
+          name: TinyStudio-net11-linux-x64
+          path: ./publish-net11
