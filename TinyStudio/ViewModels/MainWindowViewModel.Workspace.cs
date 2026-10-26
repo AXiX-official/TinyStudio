@@ -73,8 +73,8 @@ public partial class MainWindowViewModel
         {
             Filter = FilterAssetsWorkspace
         };
-        var type = asset.Type;
-        if (_assetsWorkspace.All(a => a.Type != type))
+        var type = asset.TypeName;
+        if (_assetsWorkspace.All(a => a.TypeName != type))
         {
             var selectableType = AssetTypesWorkspace.FirstOrDefault(t => t.TypeName == type);
             selectableType!.PropertyChanged -= OnSelectableTypeWorkspacePropertyChanged;

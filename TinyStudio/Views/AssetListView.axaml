@@ -72,7 +72,7 @@
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Type" Width="120" MinWidth="60" SortMemberPath="Type">
                     <DataTemplate x:DataType="models:AssetWrapper">
-                        <TextBlock Text="{Binding Type}" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TypeName}" FontSize="12" VerticalAlignment="Center"/>
                     </DataTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="PathID" Width="120" MinWidth="50" SortMemberPath="PathId">

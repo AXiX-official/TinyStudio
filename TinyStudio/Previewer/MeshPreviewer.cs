@@ -17,7 +17,7 @@ public class MeshPreviewer : IPreviewer
     
     public bool CanHandle(AssetWrapper asset)
     {
-        return asset.Type == "Mesh";
+        return asset.TypeName == "Mesh";
     }
 
     public Control CreatePreview(AssetWrapper asset, AssetManager assetManager)

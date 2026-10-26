@@ -15,7 +15,7 @@ public class AssetWrapper : INotifyPropertyChanged
     
     public IUnityAsset Value => m_Asset.Value;
     
-    public string Type => m_Asset.Type;
+    public string TypeName => m_Asset.TypeName;
 
     public string Name => m_Asset.Name;
     

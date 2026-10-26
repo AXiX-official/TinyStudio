@@ -22,7 +22,7 @@ public class TexturePreviewer : IPreviewer
     private ZoomableImageView? _zoomableImageView;
     public bool CanHandle(AssetWrapper asset)
     {
-        return asset.Type == "Texture2D" || asset.Type == "Sprite";
+        return asset.TypeName == "Texture2D" || asset.TypeName == "Sprite";
     }
 
     public Control CreatePreview(AssetWrapper asset, AssetManager assetManager)

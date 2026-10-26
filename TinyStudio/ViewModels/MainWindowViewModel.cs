@@ -24,6 +24,7 @@ using UnityAsset.NET.BundleFiles;
 using UnityAsset.NET.Files.SerializedFiles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
+using UnityAsset.NET.Types;
 using UnityAsset.NET.Types.PreDefined.Interfaces;
 using UnityAsset.NET.Types.PreDefined.Types;
 
@@ -233,7 +234,7 @@ public partial class MainWindowViewModel : ObservableObject
             all.PropertyChanged += OnSelectableTypePropertyChanged;
             AssetTypes.Add(all);
             
-            var distinctTypes = assets.Select(a => a.Type).Distinct().OrderBy(t => t);
+            var distinctTypes = assets.Select(a => a.TypeName).Distinct().OrderBy(t => t);
             foreach (var typeName in distinctTypes)
             {
                 var selectableType = new SelectableType(typeName, true);
@@ -308,7 +309,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         foreach (var asset in sf.Assets)
         {
-            if (asset.Type == "GameObject")
+            if (asset.TypeName == "GameObject")
             {
                 var gameObject = (GameObject)asset.Value;
                 var node = nodeMap.GetOrAdd(gameObject, go => new GameObjectNode(go));
@@ -420,7 +421,7 @@ public partial class MainWindowViewModel : ObservableObject
         _settingsService.SaveSettings(_settings);
 
         _fileSystem = CreateFileSystem(value);
-        _assetManager = new AssetManager(_fileSystem);
+        _assetManager = new AssetManager(_fileSystem, options: UnitySessionOptions);
     
         LogService.Info($"Game type set to {value}.");
     }
@@ -617,6 +618,15 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
+    private static UnitySessionOptions UnitySessionOptions = new UnitySessionOptions()
+    {
+        Codegen = new TypeRegistryOptions()
+        {
+            WriteGeneratedSource = true,
+            CacheDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TypeRegistryCache")
+        }
+    };
+
     public MainWindowViewModel()
     {
         FilteredAssets = new DataGridCollectionView(Array.Empty<AssetWrapper>())
@@ -634,7 +644,7 @@ public partial class MainWindowViewModel : ObservableObject
         _currentGame = _settings.GameType;
 
         _fileSystem = CreateFileSystem(CurrentGame);
-        _assetManager = new AssetManager(_fileSystem);
+        _assetManager = new AssetManager(_fileSystem, options: UnitySessionOptions);
         _previewControl = PreviewerFactory.GetPreview(null, _assetManager);
         
         IsPreviewEnabled = _settings.EnablePreview;
@@ -783,7 +793,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Filter = FilterAssetsWorkspace
         };
-        var type = asset.Type;
+        var type = asset.TypeName;
         if (AssetTypesWorkspace.All(s => s.TypeName != type))
         {
             SelectableType selectableType = new(type, true);

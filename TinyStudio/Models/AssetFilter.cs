@@ -52,7 +52,7 @@ public class AssetFilter
     
     public bool Matches(AssetWrapper asset)
     {
-        if (!_selectAll && _selectedTypes.Any() && !_selectedTypes.Contains(asset.Type))
+        if (!_selectAll && _selectedTypes.Any() && !_selectedTypes.Contains(asset.TypeName))
             return false;
 
         if (_regex == null)
@@ -60,7 +60,7 @@ public class AssetFilter
         
         return _regex.IsMatch(asset.Name) ||
                _regex.IsMatch(asset.Container) ||
-               _regex.IsMatch(asset.Type) ||
+               _regex.IsMatch(asset.TypeName) ||
                _regex.IsMatch(asset.PathIdStr) ||
                _regex.IsMatch(asset.SizeStr);
     }
