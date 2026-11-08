@@ -28,12 +28,12 @@ public class SettingsService
         }
         
         var json = File.ReadAllText(_settingsFilePath);
-        return JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+        return JsonSerializer.Deserialize(json, AppJsonContext.Default.Settings) ?? new Settings();
     }
 
     public void SaveSettings(Settings settings)
     {
-        var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(settings, AppJsonContext.Default.Settings);
         File.WriteAllText(_settingsFilePath, json);
     }
 }

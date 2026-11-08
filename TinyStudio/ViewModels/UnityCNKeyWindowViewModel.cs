@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -9,6 +9,7 @@ using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TinyStudio.Models;
+using TinyStudio.Service;
 using TinyStudio.Views;
 
 namespace TinyStudio.ViewModels;
@@ -43,7 +44,7 @@ public partial class UnityCNKeyWindowViewModel : ObservableObject
         if (File.Exists(_jsonPath))
         {
             var json = File.ReadAllText(_jsonPath);
-            var keys = JsonSerializer.Deserialize<List<UnityCNKey>>(json);
+            var keys = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListUnityCNKey);
             if (keys != null)
             {
                 foreach (var key in keys)
@@ -56,12 +57,8 @@ public partial class UnityCNKeyWindowViewModel : ObservableObject
 
     private async Task SaveKeysToJson()
     {
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true
-        };
         await using var fileStream = new FileStream(_jsonPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await JsonSerializer.SerializeAsync(fileStream, Keys, options);
+        await JsonSerializer.SerializeAsync(fileStream, Keys, AppJsonContext.Default.ObservableCollectionUnityCNKey);
     }
 
     [RelayCommand]

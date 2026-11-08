@@ -6,7 +6,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET", "UnityAsse
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET.TypeTreeHelper", "UnityAsset.NET\UnityAsset.NET.TypeTreeHelper\UnityAsset.NET.TypeTreeHelper.csproj", "{BC577F5E-40A6-456C-A6FD-F3D56E26D1A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET.Variant.SourceGenerator", "UnityAsset.NET\UnityAsset.NET.Variant.SourceGenerator\UnityAsset.NET.Variant.SourceGenerator.csproj", "{25346105-A197-4254-BEA0-F3A73AC36CB8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET.SourceGenerator", "UnityAsset.NET\UnityAsset.NET.SourceGenerator\UnityAsset.NET.SourceGenerator.csproj", "{25346105-A197-4254-BEA0-F3A73AC36CB8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityAsset.NET.Core", "UnityAsset.NET\UnityAsset.NET.Core\UnityAsset.NET.Core.csproj", "{03BF9B8C-B0AC-4FF0-BF96-72945B42050D}"
 EndProject

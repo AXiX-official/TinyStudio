@@ -11,6 +11,18 @@ jobs:
   build:
     runs-on: windows-latest
 
+    # Avalonia's XAML compiler weaves compiled XAML into the intermediate
+    # assembly during CoreCompile. Reused MSBuild nodes can skip that step
+    # ("target already built successfully"), leaving an unwoven assembly that
+    # ILC bakes into the native exe; it then crashes at startup with
+    # "No precompiled XAML found for TinyStudio.App".
+    # Do NOT insert `dotnet clean` between the publishes: clean requires an
+    # assets target for the RID and fails with NETSDK1047/NETSDK1005 here,
+    # because the restore step runs without one.
+    env:
+      MSBUILDDISABLENODEREUSE: 1
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: 1
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +33,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '11.0.x'
-          
+
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
@@ -29,15 +41,39 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-              
+
       - name: Restore dependencies
         run: dotnet restore TinyStudio/TinyStudio.csproj
-        
+
+      # UnityAssetTargetFramework narrows the submodule to a single TFM.
+      # TinyStudio is multi-targeted, so narrow it to the same TFM too;
+      # otherwise restore resolves its other TFM against a net11-only
+      # submodule and fails with NU1201.
       - name: Build and publish for .NET 10
         run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r win-x64 -o ./publish-net10
 
+      - name: Build and publish for .NET 10(AOT)
+        run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r win-x64 -o ./publish-net10-aot -p:PublishAot=true -p:UnityAssetTargetFramework=net10.0 -p:TargetFrameworks=net10.0
+
       - name: Build and publish for .NET 11
         run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net11.0 -r win-x64 -o ./publish-net11
+
+      - name: Build and publish for .NET 11(AOT)
+        run: dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net11.0 -r win-x64 -o ./publish-net11-aot -p:PublishAot=true -p:UnityAssetTargetFramework=net11.0 -p:TargetFrameworks=net11.0
+
+      - name: Verify AOT outputs contain compiled XAML
+        shell: bash
+        run: |
+          for exe in publish-net10-aot/TinyStudio.exe publish-net11-aot/TinyStudio.exe; do
+            if [ ! -f "$exe" ]; then
+              echo "::error file=$exe::AOT executable was not produced"
+              exit 1
+            fi
+            if ! grep -a -q 'CompiledAvaloniaXaml' "$exe"; then
+              echo "::error file=$exe::missing compiled Avalonia XAML; the app would crash at startup with XamlLoadException"
+              exit 1
+            fi
+          done
 
       - name: Upload .NET 10 Artifact
         uses: actions/upload-artifact@v4
@@ -45,8 +81,20 @@ jobs:
           name: TinyStudio-net10-windows-x64
           path: ./publish-net10
 
+      - name: Upload .NET 10 Artifact(AOT)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net10-AOT-windows-x64
+          path: ./publish-net10-aot
+
       - name: Upload .NET 11 Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TinyStudio-net11-windows-x64
           path: ./publish-net11
+
+      - name: Upload .NET 11 Artifact(AOT)
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net11-AOT-windows-x64
+          path: ./publish-net11-aot

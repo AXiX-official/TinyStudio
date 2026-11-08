@@ -9,6 +9,7 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
         <ServerGarbageCollection>true</ServerGarbageCollection>
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
