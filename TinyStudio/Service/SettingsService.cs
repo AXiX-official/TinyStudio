@@ -33,7 +33,16 @@ public class SettingsService
 
     public void SaveSettings(Settings settings)
     {
-        var json = JsonSerializer.Serialize(settings, AppJsonContext.Default.Settings);
-        File.WriteAllText(_settingsFilePath, json);
+        try
+        {
+            var json = JsonSerializer.Serialize(settings, AppJsonContext.Default.Settings);
+            File.WriteAllText(_settingsFilePath, json);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Settings are non-critical; a locked or read-only user profile must
+            // never prevent the application from starting.
+            LogService.Warning($"Failed to save settings: {ex.Message}");
+        }
     }
 }

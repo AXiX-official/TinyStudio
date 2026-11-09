@@ -11,20 +11,10 @@ jobs:
   build:
     runs-on: windows-latest
 
-    # Avalonia 11.3.x adds its !AvaloniaResources EmbeddedResource from a
-    # target hooked to ResolveReferences. Newer .NET 11 SDKs snapshot
-    # @(EmbeddedResource) earlier (SplitResourcesByCulture), so the item
-    # misses csc and CompileAvaloniaXamlTask finds no XAML to weave; ILC then
-    # bakes a throwing stub into the exe ("No precompiled XAML found for
-    # TinyStudio.App"). TinyStudio.csproj has EnsureAvaloniaResourcesEmbedded
-    # to fix that on any SDK version.
-    # Do NOT insert `dotnet clean` between the publishes: clean requires an
-    # assets target for the RID and fails with NETSDK1047/NETSDK1005 here,
-    # because the restore step runs without one.
-    env:
-      MSBUILDDISABLENODEREUSE: 1
-      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: 1
-
+    # Build/verify logic lives in scripts/build.ps1 (scripts/build.bat for
+    # local use). See that script for the AOT/RID/XAML-weaving rationale and
+    # the "no dotnet clean" constraint. The build env vars are set by the
+    # script itself so CI and local builds behave identically.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,80 +34,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore dependencies
-        run: dotnet restore TinyStudio/TinyStudio.csproj
-
-      # UnityAssetTargetFramework narrows the submodule to a single TFM.
-      # TinyStudio is multi-targeted, so narrow it to the same TFM too;
-      # otherwise restore resolves its other TFM against a net11-only
-      # submodule and fails with NU1201.
-      - name: Build and publish for .NET 10
-        shell: bash
+      # Restore + 4 publishes + AOT verification all happen inside the script.
+      - name: Build, publish and verify (all variants)
+        shell: pwsh
         run: |
-          rm -rf TinyStudio/obj/Release/net10.0/win-x64
-          dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r win-x64 -o ./publish-net10
-
-      - name: Build and publish for .NET 10(AOT)
-        shell: bash
-        run: |
-          rm -rf TinyStudio/obj/Release/net10.0/win-x64
-          dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net10.0 -r win-x64 -o ./publish-net10-aot -p:PublishAot=true -p:UnityAssetTargetFramework=net10.0 -p:TargetFrameworks=net10.0
-
-      - name: Build and publish for .NET 11
-        shell: bash
-        run: |
-          rm -rf TinyStudio/obj/Release/net11.0/win-x64
-          dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net11.0 -r win-x64 -o ./publish-net11
-
-      - name: Build and publish for .NET 11(AOT)
-        shell: bash
-        run: |
-          rm -rf TinyStudio/obj/Release/net11.0/win-x64
-          dotnet publish TinyStudio/TinyStudio.csproj -c Release -f net11.0 -r win-x64 -o ./publish-net11-aot -p:PublishAot=true -p:UnityAssetTargetFramework=net11.0 -p:TargetFrameworks=net11.0
-
-      - name: Verify AOT builds contain compiled XAML
-        shell: bash
-        run: |
-          # Avalonia weaves compiled XAML into the managed assembly that ILC
-          # consumes. That marker is deterministic; the same string in the
-          # final native image is NOT - whether ILCompiler keeps type names in
-          # the native image depends on its version, and setup-dotnet 11.0.x
-          # may install a different one than a local SDK.
-          check_aot() {
-            tfm="$1"; out="$2"
-            dll="TinyStudio/obj/Release/$tfm/win-x64/TinyStudio.dll"
-            exe="publish-$out/TinyStudio.exe"
-
-            echo "--- $out ($tfm) ---"
-            if [ ! -f "$dll" ]; then
-              echo "::error::intermediate assembly not found: $dll"
-              exit 1
-            fi
-            if [ ! -f "$exe" ]; then
-              echo "::error file=$exe::AOT executable was not produced"
-              exit 1
-            fi
-            echo "intermediate dll: $(stat -c %s "$dll") bytes; native exe: $(stat -c %s "$exe") bytes"
-            res="TinyStudio/obj/Release/$tfm/win-x64/Avalonia/resources"
-            if [ -f "$res" ]; then
-              echo "Avalonia/resources: $(stat -c %s "$res") bytes"
-            else
-              echo "::warning::Avalonia/resources was not generated at $res"
-            fi
-
-            if ! grep -a -q 'CompiledAvaloniaXaml' "$dll"; then
-              echo "::error file=$dll::compiled Avalonia XAML is missing ($(stat -c %s "$dll") bytes) - XAML weaving was skipped, ILC would bake the throwing stub into the exe"
-              exit 1
-            fi
-            echo "compiled XAML in intermediate assembly: OK"
-
-            if ! grep -a -q 'CompiledAvaloniaXaml' "$exe"; then
-              echo "::notice file=$exe::type-name marker absent from native image (ILCompiler-dependent, not a failure)"
-            fi
-          }
-
-          check_aot net10.0 net10-aot
-          check_aot net11.0 net11-aot
+          ./scripts/build.ps1 -Verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload .NET 10 Artifact
         uses: actions/upload-artifact@v4

@@ -1,0 +1,4 @@
+# Keep shell scripts executable by Git Bash even with core.autocrlf=true.
+*.sh  text eol=lf
+*.bat text eol=crlf
+*.ps1 text

@@ -225,6 +225,8 @@ public partial class MainWindowViewModel : ObservableObject
             LogStatus("Building Scene Hierarchy...");
             
             await BuildSceneHierarchy(assetWrapperToAssetMap, progress);
+            
+            LogStatus($"Built Scene Hierarchy in {startTime.Elapsed.TotalSeconds:F2} seconds.");
             progress.Flush();
             foreach (var selectableType in AssetTypes)
                 selectableType.PropertyChanged -= OnSelectableTypePropertyChanged;
@@ -660,7 +662,14 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _consoleLogViewModel.MinimumLevel = _settings.ConsoleLogLevel;
         }
-        AvailableLevels.FirstOrDefault(l => l.Level == _settings.ConsoleLogLevel)!.IsSelected = true;
+        // Initializing the selection only reflects the loaded settings; it must not
+        // trigger OnSelectableLogLevelPropertyChanged, which writes settings back
+        // to disk (a permission/lock failure there used to crash startup).
+        _internalUpdate = true;
+        var selectedLevel = AvailableLevels.FirstOrDefault(l => l.Level == _settings.ConsoleLogLevel);
+        if (selectedLevel != null)
+            selectedLevel.IsSelected = true;
+        _internalUpdate = false;
     }
 
     private IFileSystem CreateFileSystem(Game game)
