@@ -50,6 +50,16 @@ log_error()  { _ann error   "${2:-}" "$1"; }
 log_warn()   { _ann warning "${2:-}" "$1"; }
 log_notice() { _ann notice  "${2:-}" "$1"; }
 
+# One variant takes minutes (AOT especially), so the banner has to stand out when scrolling back.
+# GitHub renders ANSI in its log even though stdout there is not a tty.
+if [[ -t 1 || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    C_VARIANT=$'\033[1;33m'
+    C_RESET=$'\033[0m'
+else
+    C_VARIANT=''
+    C_RESET=''
+fi
+
 usage() {
     cat <<'EOF'
 Usage: bash scripts/build.sh [options]
@@ -59,13 +69,36 @@ Runs `dotnet restore` and sets the CI build env vars itself.
 
 Options:
   --verify             Verify AOT variants contain compiled Avalonia XAML.
-  --variant, -v NAME   Build only one variant (default: all).
+  --variant, -v NAME   Build exactly this variant, on its own. The --satori / --nodedata /
+                       --gc options only shape what "all" means; a named variant needs none of them.
+  --satori             Also build the Satori GC variants. Satori is a publish-time
+                       switch and this app is multi-targeted, so it cannot live in
+                       the csproj; the non-AOT shape also needs a self-contained
+                       publish to carry the runtime that offers it.
+  --nodedata           Also build the JIT variants that parse through the NodeData
+                       backend instead of runtime code generation.
+  --list               Print the variants that would be built, then exit without building.
+  --gc NAME            all (default) | server | satori. Narrows the selection to one
+                       garbage collector, so one GC can be built on its own.
   -h, --help           Show this help and exit.
 
 Variants (linux-x64):
-  all         net11 + net11-aot (default)
-  net11       plain .NET 11 publish
-  net11-aot   native AOT .NET 11 publish
+  all                  net11 + net11-aot (default)
+  net11                plain .NET 11 publish
+  net11-aot            native AOT .NET 11 publish
+  (+ --satori)         net11-satori, net11-aot-satori
+  (+ --nodedata)       net11-nodedata
+  (+ both)             net11-satori-nodedata
+
+Common combinations:
+  --nodedata                         one GC (server), all three shapes (3)
+  --gc satori --satori --nodedata    the Satori GC alone, all three shapes (3)
+  --satori --nodedata                both GCs, every shape (6)
+  --list                             show the resulting set first, build nothing
+
+Output folders keep the existing names for the default variants (publish-net11,
+publish-net11-aot) and are suffixed for the extra ones (publish-net11-satori,
+publish-net11-aot-satori, publish-net11-nodedata).
 
 Notes:
   * net10 / net10-aot are Windows-only and are rejected here.
@@ -76,9 +109,25 @@ EOF
 
 VERIFY=0
 VARIANT="all"
+SATORI=0
+NODEDATA=0
+LIST=0
+GC="all"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --verify) VERIFY=1; shift ;;
+        --satori) SATORI=1; shift ;;
+        --nodedata) NODEDATA=1; shift ;;
+        --list) LIST=1; shift ;;
+        --gc)
+            if [[ $# -lt 2 ]]; then
+                log_error "--gc needs a value (all, server or satori)"
+                usage
+                exit 2
+            fi
+            GC="$2"
+            shift 2
+            ;;
         --variant|-v)
             if [[ $# -lt 2 ]]; then
                 log_error "--variant needs a value"
@@ -97,27 +146,61 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Variant table: Name|Tfm|Aot|Out
-# Order is load-bearing: plain before AOT for each TFM. net11 and net11-aot
-# share the same obj dir, so the AOT publish must be the last one for its TFM.
+# Variant table: Name|Tfm|Aot|Satori|NodeData|Out|SatoriVersion
+# Order is load-bearing: within one TFM every non-AOT publish comes first and the
+# AOT ones last, because they share the same obj dir (see the notes at the top).
+# The Satori version is the <Sdk> package that matches the TFM; it cannot be chosen
+# per target framework inside a multi-targeted csproj, so the publish loop swaps it in.
+SATORI_NET11="11.0.0-satori.42242472725.1"
 VARIANTS=(
-    "net11|net11.0|0|net11"
-    "net11-aot|net11.0|1|net11-aot"
+    "net11|net11.0|0|0|0|net11|"
+    "net11-satori|net11.0|0|1|0|net11-satori|$SATORI_NET11"
+    "net11-nodedata|net11.0|0|0|1|net11-nodedata|"
+    "net11-satori-nodedata|net11.0|0|1|1|net11-satori-nodedata|$SATORI_NET11"
+    "net11-aot|net11.0|1|0|0|net11-aot|"
+    "net11-aot-satori|net11.0|1|1|0|net11-aot-satori|$SATORI_NET11"
 )
-case "$VARIANT" in
-    all)       SELECTED=("${VARIANTS[@]}") ;;
-    net11)     SELECTED=("${VARIANTS[0]}") ;;
-    net11-aot) SELECTED=("${VARIANTS[1]}") ;;
-    net10|net10-aot)
-        log_error "variant '$VARIANT' is Windows-only; Linux supports: all, net11, net11-aot"
-        exit 2
-        ;;
+case "$GC" in
+    all|server|satori) ;;
     *)
-        log_error "unknown variant '$VARIANT'"
+        log_error "unknown --gc value '$GC' (expected: all, server, satori)"
         usage
         exit 2
         ;;
 esac
+SELECTED=()
+if [[ "$VARIANT" == "all" ]]; then
+    for rec in "${VARIANTS[@]}"; do
+        IFS='|' read -r name tfm aot satori nodedata out satori_version <<< "$rec"
+        if [[ "$satori" == "1" && "$SATORI" != "1" ]]; then continue; fi
+        if [[ "$nodedata" == "1" && "$NODEDATA" != "1" ]]; then continue; fi
+        if [[ "$GC" == "satori" && "$satori" != "1" ]]; then continue; fi
+        if [[ "$GC" == "server" && "$satori" == "1" ]]; then continue; fi
+        SELECTED+=("$rec")
+    done
+else
+    # A named variant is the narrowest request there is, so it wins over the switches and --gc: asking for
+    # net11-satori should not also require --satori. The switches only decide what "all" means.
+    for rec in "${VARIANTS[@]}"; do
+        IFS='|' read -r name tfm aot satori nodedata out satori_version <<< "$rec"
+        if [[ "$name" == "$VARIANT" ]]; then SELECTED+=("$rec"); fi
+    done
+fi
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
+    log_error "unknown variant '$VARIANT'"
+    usage
+    exit 2
+fi
+
+if [[ "$LIST" == "1" ]]; then
+    echo "variants selected: ${#SELECTED[@]}"
+    for rec in "${SELECTED[@]}"; do
+        IFS='|' read -r name tfm aot satori nodedata out satori_version <<< "$rec"
+        printf '  %-24s tfm=%-8s aot=%s satori=%s nodedata=%s -> publish-%s\n' \
+            "$name" "$tfm" "$aot" "$satori" "$nodedata" "$out"
+    done
+    exit 0
+fi
 
 log_info ">>> Restoring"
 dotnet restore "$PROJECT" || {
@@ -127,12 +210,30 @@ dotnet restore "$PROJECT" || {
 }
 
 BUILT=""
+# Tracks which backend the library was last compiled for. UnityAssetNodeData changes what
+# UnityAsset.NET compiles (the analyzer output, the Roslyn package reference, DefineConstants),
+# and an incremental build does not notice that switch, so the library's obj is dropped whenever
+# the effective backend changes between variants.
+LAST_NODE_DATA=""
 for rec in "${SELECTED[@]}"; do
-    IFS='|' read -r name tfm aot out <<< "$rec"
-    log_info ">>> Building $name (tfm=$tfm, aot=$aot, rid=$RID)"
+    IFS='|' read -r name tfm aot satori nodedata out satori_version <<< "$rec"
+    echo '------------------------------------------------------------------------'
+    printf '%s>>> Building %s (tfm=%s, aot=%s, satori=%s, nodedata=%s, rid=%s)%s\n' \
+        "$C_VARIANT" "$name" "$tfm" "$aot" "$satori" "$nodedata" "$RID" "$C_RESET"
+
+    # PublishAot implies UnityAssetNodeData, so the AOT variants count as the node backend too.
+    if [[ "$nodedata" == "1" || "$aot" == "1" ]]; then effective_node_data=1; else effective_node_data=0; fi
+    if [[ "$LAST_NODE_DATA" != "$effective_node_data" ]]; then
+        rm -rf "UnityAsset.NET/UnityAsset.NET/obj"
+        LAST_NODE_DATA="$effective_node_data"
+    fi
 
     objDir="TinyStudio/obj/$CONFIG/$tfm/$RID"
     rm -rf "$objDir"
+
+    # publish does not clean the output folder: a framework-dependent publish over a previous
+    # self-contained one leaves a stale runtime behind and the folder no longer describes the variant.
+    rm -rf "./publish-$out"
 
     publishArgs=(
         publish "$PROJECT"
@@ -146,12 +247,53 @@ for rec in "${SELECTED[@]}"; do
             "-p:TargetFrameworks=$tfm"
         )
     fi
+    if [[ "$satori" == "1" ]]; then
+        # Satori swaps the runtime pack, so the publish has to be self-contained. Its <Sdk> version is
+        # swapped in below, because an <Sdk> version cannot be conditioned per target framework.
+        publishArgs+=(-p:SelfContained=true -p:UseSatoriGC=true)
+    else
+        # The project references the Satori SDK unconditionally (an <Sdk> element cannot be conditioned per TFM),
+        # and it defaults to enabled. Left alone, every server-GC build would swap the runtime pack, every AOT
+        # build would compile with the Satori ILC toolchain, and each one would carry the experimental warning.
+        publishArgs+=(-p:UseSatoriGC=false)
+    fi
+    if [[ "$nodedata" == "1" ]]; then
+        # Same binary, but the parser goes through the node backend instead of runtime code generation.
+        publishArgs+=(-p:UnityAssetNodeData=true)
+    fi
 
-    dotnet "${publishArgs[@]}" || {
-        rc=$?
+    csproj_backup=""
+    if [[ "$satori" == "1" ]]; then
+        csproj_backup="$(mktemp)"
+        cp "$PROJECT" "$csproj_backup"
+        # The project deliberately does not carry the element (an <Sdk> cannot be conditioned per TFM, and leaving
+        # one in would also change the server-GC builds). Inject it here; the block below takes it back out.
+        if grep -qE '<Sdk Name="PublishWithSatoriGC" Version="[^"]*" />' "$PROJECT"; then
+            sed -i -E "s#<Sdk Name=\"PublishWithSatoriGC\" Version=\"[^\"]*\" />#<Sdk Name=\"PublishWithSatoriGC\" Version=\"$satori_version\" />#" "$PROJECT"
+        else
+            sed -i -E "0,/^[[:space:]]*<Project Sdk=\"Microsoft\.NET\.Sdk\">[[:space:]]*$/s##&\n    <Sdk Name=\"PublishWithSatoriGC\" Version=\"$satori_version\" />#" "$PROJECT"
+        fi
+        if ! grep -q 'PublishWithSatoriGC' "$PROJECT"; then
+            cp "$csproj_backup" "$PROJECT"
+            rm -f "$csproj_backup"
+            log_error "could not inject the Satori <Sdk> element into $PROJECT"
+            exit 1
+        fi
+    fi
+
+    rc=0
+    dotnet "${publishArgs[@]}" || rc=$?
+
+    # Always put the project back, including when the publish failed.
+    if [[ -n "$csproj_backup" ]]; then
+        cp "$csproj_backup" "$PROJECT"
+        rm -f "$csproj_backup"
+    fi
+
+    if [[ "$rc" -ne 0 ]]; then
         log_error "publish failed for $name (exit $rc)"
         exit "$rc"
-    }
+    fi
     BUILT+=" $name"
 done
 
@@ -196,7 +338,7 @@ check_aot() {
 
 if [[ "$VERIFY" == "1" ]]; then
     for rec in "${SELECTED[@]}"; do
-        IFS='|' read -r name tfm aot out <<< "$rec"
+        IFS='|' read -r name tfm aot satori nodedata out satori_version <<< "$rec"
         if [[ "$aot" == "1" ]]; then
             check_aot "$tfm" "$out" "$RID"
         else

@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ "master" ]
   workflow_dispatch:
+    inputs:
+      satori:
+        description: 'Also build the Satori GC variants (self-contained)'
+        type: boolean
+        default: false
+      nodedata:
+        description: 'Also build the JIT variants that parse through the NodeData backend'
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -15,6 +24,10 @@ jobs:
     # AOT/RID/XAML-weaving rationale and the "no dotnet clean" constraint.
     # The build env vars are set by the script itself so CI and local builds
     # behave identically.
+    #
+    # Default (push/PR) behavior is unchanged: net11 + net11-aot on server GC.
+    # The Satori GC and NodeData-backend variants are opt-in through the
+    # workflow_dispatch inputs above.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,10 +47,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      # Restore + 2 publishes + AOT verification all happen inside the script.
+      # Restore + publishes + AOT verification all happen inside the script.
       - name: Build, publish and verify (all variants)
         shell: bash
-        run: bash scripts/build.sh --verify
+        run: |
+          extra=()
+          if [[ '${{ inputs.satori }}' == 'true' ]]; then extra+=(--satori); fi
+          if [[ '${{ inputs.nodedata }}' == 'true' ]]; then extra+=(--nodedata); fi
+          bash scripts/build.sh --verify "${extra[@]}"
 
       - name: Upload .NET 11 linux-x64 Artifact
         uses: actions/upload-artifact@v4
@@ -50,3 +67,31 @@ jobs:
         with:
           name: TinyStudio-net11-AOT-linux-x64
           path: ./publish-net11-aot
+
+      - name: Upload .NET 11 linux-x64 Artifact(Satori GC)
+        if: ${{ inputs.satori }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net11-satori-linux-x64
+          path: ./publish-net11-satori
+
+      - name: Upload .NET 11 linux-x64 Artifact(AOT, Satori GC)
+        if: ${{ inputs.satori }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net11-AOT-satori-linux-x64
+          path: ./publish-net11-aot-satori
+
+      - name: Upload .NET 11 linux-x64 Artifact(NodeData backend)
+        if: ${{ inputs.nodedata }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net11-nodedata-linux-x64
+          path: ./publish-net11-nodedata
+
+      - name: Upload .NET 11 linux-x64 Artifact(Satori GC, NodeData backend)
+        if: ${{ inputs.satori && inputs.nodedata }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyStudio-net11-satori-nodedata-linux-x64
+          path: ./publish-net11-satori-nodedata
