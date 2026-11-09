@@ -44,4 +44,24 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
+    <!--
+        Avalonia 11.3.x adds the !AvaloniaResources EmbeddedResource from a target
+        hooked to ResolveReferences. Newer MSBuild SDKs snapshot @(EmbeddedResource)
+        before ResolveReferences, so the item misses csc and CompileAvaloniaXamlTask
+        finds no XAML to weave (the app then throws XamlLoadException at startup).
+        Add the item earlier and idempotently so it works on any SDK version.
+    -->
+    <Target Name="EnsureAvaloniaResourcesEmbedded" BeforeTargets="SplitResourcesByCulture;AssignTargetPaths"
+            DependsOnTargets="GenerateAvaloniaResources"
+            Condition="('@(AvaloniaResource)' != '') or ('@(AvaloniaXaml)' != '')">
+        <PropertyGroup>
+            <AvaloniaResourcesTemporaryFilePath Condition="'$(AvaloniaResourcesTemporaryFilePath)' == ''">$(IntermediateOutputPath)/Avalonia/resources</AvaloniaResourcesTemporaryFilePath>
+        </PropertyGroup>
+        <ItemGroup>
+            <EmbeddedResource Remove="$(AvaloniaResourcesTemporaryFilePath)" />
+            <EmbeddedResource Include="$(AvaloniaResourcesTemporaryFilePath)">
+                <LogicalName>!AvaloniaResources</LogicalName>
+            </EmbeddedResource>
+        </ItemGroup>
+    </Target>
 </Project>
