@@ -21,21 +21,27 @@ using TinyStudio.Previewer;
 using TinyStudio.Views;
 using UnityAsset.NET;
 using UnityAsset.NET.BundleFiles;
+using UnityAsset.NET.Diagnostics;
 using UnityAsset.NET.Files.SerializedFiles;
 using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.FileSystem.DirectFileSystem;
+using UnityAsset.NET.FileSystem.ZipFileSystem;
 using UnityAsset.NET.Types;
 using UnityAsset.NET.Types.PreDefined.Interfaces;
 using UnityAsset.NET.Types.PreDefined.Types;
 
 namespace TinyStudio.ViewModels;
 
-public partial class MainWindowViewModel : ObservableObject
+public partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly Settings _settings;
     private IFileSystem _fileSystem;
     private AssetManager _assetManager;
+
+    /// <summary>The selected game's decoding stage, when it has one; kept so its measurements can be logged.</summary>
+    private IVirtualFileTransform? _gameTransform;
+
     private Window? _window;
     private TabItemViewModel? _previewTab;
     private TabItemViewModel? _dumpTab;
@@ -96,7 +102,13 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Title = "Load File",
             AllowMultiple = true,
-            FileTypeFilter = [new("any file") { Patterns = [ "*" ] }]
+            // An archive is read like any other input, so it is offered as a filter and not as a second command; "any
+            // file" stays first because picking one loose file is still the common case.
+            FileTypeFilter =
+            [
+                new("any file") { Patterns = ["*"] },
+                new("unity files and archives") { Patterns = ["*.unity3d", "*.bundle", "*.assets", "*.zip", "*.apk"] }
+            ]
         });
         
         if (files.Any())
@@ -199,6 +211,8 @@ public partial class MainWindowViewModel : ObservableObject
             await _assetManager.LoadAsync(virtualFiles, true, progress);
             progress.Flush();
             LogStatus($"Loaded bundle files in {startTime.Elapsed.TotalSeconds:F2} seconds.");
+            LogDecoding();
+            LogSkippedInputs();
             
             LogStatus("Loading Assets...");
             startTime.Restart();
@@ -622,6 +636,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static UnitySessionOptions UnitySessionOptions = new UnitySessionOptions()
     {
+        // A game folder or an apk routinely holds a file nothing can read — a stub, a truncated entry — and the rest of
+        // the load is still worth having. Skipping is reported per file below, so it is not a silent loss.
+        CorruptFile = ErrorPolicy.SkipAndReport,
         Codegen = new TypeRegistryOptions()
         {
             WriteGeneratedSource = true,
@@ -672,28 +689,61 @@ public partial class MainWindowViewModel : ObservableObject
         _internalUpdate = false;
     }
 
+    /// <summary>
+    /// Builds the load: the given paths are read, the archives among them are opened, and the selected game decodes what
+    /// it recognises. A game is a stage and not a file system of its own, which is what lets a <c>.bundle</c> inside an
+    /// apk be decoded exactly like one in a folder, and what keeps an archive from needing an entry point of its own.
+    /// </summary>
     private IFileSystem CreateFileSystem(Game game)
     {
-        switch (game)
+        void ReportError(string path, Exception exception, string errorMessage) => LogService.Error(errorMessage);
+
+        _gameTransform = game switch
         {
-            case Game.Normal:
-                return new DirectFileSystem((_, _, errorMessage) =>
-                {
-                    LogService.Error(errorMessage);
-                });
-            case Game.GF2:
-                return new Gf2FileSystem((_, _, errorMessage) =>
-                {
-                    LogService.Error(errorMessage);
-                });
-            case Game.PerpetualNovelty:
-                return new PerpetualNoveltyFileSystem((_, _, errorMessage) =>
-                {
-                    LogService.Error(errorMessage);
-                });
-            default:
-                throw new ArgumentOutOfRangeException(nameof(game), game, null);
+            Game.GF2 => new Gf2Transform(),
+            Game.PerpetualNovelty => new PerpetualNoveltyTransform(),
+            Game.Normal => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(game), game, null)
+        };
+
+        IReadOnlyList<IVirtualFileTransform> transforms =
+            _gameTransform is null ? [] : [_gameTransform];
+
+        return new ZipFileSystem(new DirectFileSystem(ReportError), transforms);
+    }
+
+    /// <summary>
+    /// What the game's decoder worked out about this input. It is worth a log line: a game update changes these numbers,
+    /// and the number it changed to is the first thing that explains a load that suddenly fails.
+    /// </summary>
+    private void LogDecoding()
+    {
+        switch (_gameTransform)
+        {
+            case PerpetualNoveltyTransform perpetualNovelty:
+                LogService.Info(
+                    $"PerpetualNovelty: {perpetualNovelty.MaskedLength} bytes masked after each bundle header.");
+                break;
         }
+    }
+
+    /// <summary>
+    /// Reports what the session had to skip. A load that quietly drops an unreadable file and reports a total looks
+    /// like a game that has less content than it does.
+    /// </summary>
+    private void LogSkippedInputs()
+    {
+        var diagnostics = _assetManager.Diagnostics;
+        if (diagnostics.Count == 0)
+            return;
+
+        LogService.Warning($"{diagnostics.Count} input(s) could not be read and were skipped:");
+        const int limit = 20;
+        foreach (var diagnostic in diagnostics.Take(limit))
+            LogService.Warning($"  {diagnostic}");
+
+        if (diagnostics.Count > limit)
+            LogService.Warning($"  ... and {diagnostics.Count - limit} more.");
     }
 
     private void UpdatePreviewControl(AssetWrapper? toPreviewAsset = null)
@@ -779,19 +829,43 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ShowOriginalFile(AssetWrapper asset)
     {
-        var hasSourceFile = asset.GetVirtualFile(out var file);
-
-        if (hasSourceFile)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                Process.Start("explorer.exe", $"/select,\"{file!.Path}\"");
-            }
-        }
-        else
+        if (!asset.GetVirtualFile(out var file))
         {
             LogService.Error("No source file linked to selected asset.");
+            return;
         }
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        // An asset inside an archive is named "archive:entry", which no shell verb can open, so the archive is selected
+        // instead. A Windows path carries a colon of its own, so the candidates are probed from the last one backwards.
+        var source = FindOnDisk(file!.Path);
+        if (source is null)
+        {
+            LogService.Error($"The source of {file.Path} is no longer on disk.");
+            return;
+        }
+
+        if (!string.Equals(source, file.Path, StringComparison.Ordinal))
+            LogStatus($"{file.Path} lives inside {Path.GetFileName(source)}.");
+
+        Process.Start("explorer.exe", $"/select,\"{source}\"");
+    }
+
+    /// <summary>
+    /// The path itself, or the archive it was read out of. Null when neither exists any more.
+    /// </summary>
+    private static string? FindOnDisk(string path)
+    {
+        for (var index = path.LastIndexOf(':'); index > 1; index = path.LastIndexOf(':', index - 1))
+        {
+            var candidate = path[..index];
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return File.Exists(path) ? path : null;
     }
 
     [RelayCommand]

@@ -1,42 +1,63 @@
-﻿using System;
+using System;
 using Microsoft.Win32.SafeHandles;
 using UnityAsset.NET.FileSystem;
-using UnityAsset.NET.FileSystem.DirectFileSystem;
 
 namespace TinyStudio.Games.PerpetualNovelty;
 
-public class PerpetualNoveltyFile : DirectFile
+public class PerpetualNoveltyFile : IVirtualFile
 {
+    private readonly IVirtualFile _source;
+    private readonly long _maskStart;
+    private readonly long _maskEnd;
     private readonly byte _key;
-    private readonly long _blocksAndDirectoryInfoOffset;
-    private readonly long _blocksAndDirectoryInfoEnd;
-    private static readonly long EncryptLength = 73;
+    private long _position;
 
-    public PerpetualNoveltyFile(SafeFileHandle handle, long start, long length, long offset, UInt32 blocksAndDirectoryInfoLength, byte key)
-        : base(handle, start, length)
+    public PerpetualNoveltyFile(IVirtualFile source, long offset, long maskedLength, byte key)
     {
-        _blocksAndDirectoryInfoOffset = offset;
-        _blocksAndDirectoryInfoEnd = offset + Math.Min(EncryptLength, blocksAndDirectoryInfoLength);
+        _source = source.Clone();
+        Length = source.Length;
+        _maskStart = offset;
+        _maskEnd = Math.Min(offset + maskedLength, Length);
         _key = key;
     }
 
-    public override uint Read(Span<byte> buffer, uint offset, uint count)
-    {
-        var ret = base.Read(buffer, offset, count);
-        var start = Position - ret;
-        for (var i = Math.Max(start, _blocksAndDirectoryInfoOffset); i < _blocksAndDirectoryInfoEnd && i - start < Position; i++)
-        {
-            buffer[(int)(offset + i - start)] ^= _key;
-        }
+    public SafeFileHandle Handle => _source.Handle;
 
-        return ret;
-    }
-    
-    public override IVirtualFile Clone()
+    public long Length { get; }
+
+    public long Position
     {
-        var ret = new PerpetualNoveltyFile(Handle, _start, Length, _blocksAndDirectoryInfoOffset,
-            (uint)(_blocksAndDirectoryInfoEnd - _blocksAndDirectoryInfoOffset), _key);
-        ret.Position = Position;
-        return ret;
+        get => _position;
+        set
+        {
+            if (value < 0 || value > Length)
+                throw new ArgumentOutOfRangeException(nameof(value));
+            _position = value;
+        }
     }
+
+    public uint Read(Span<byte> buffer, uint offset, uint count)
+    {
+        if (offset > (uint)buffer.Length || count > (uint)buffer.Length - offset)
+            throw new ArgumentOutOfRangeException(
+                nameof(count),
+                $"Reading {count} bytes at offset {offset} does not fit in a {buffer.Length}-byte buffer.");
+
+        var toRead = (int)Math.Min(count, (uint)Math.Max(0, Length - _position));
+        if (toRead == 0)
+            return 0;
+
+        var start = _position;
+        _source.Position = start;
+        var read = (int)_source.Read(buffer, offset, (uint)toRead);
+
+        for (var i = Math.Max(start, _maskStart); i < _maskEnd && i - start < read; i++)
+            buffer[(int)(offset + i - start)] ^= _key;
+
+        _position += read;
+        return (uint)read;
+    }
+
+    public IVirtualFile Clone()
+        => new PerpetualNoveltyFile(_source, _maskStart, _maskEnd - _maskStart, _key) { Position = Position };
 }

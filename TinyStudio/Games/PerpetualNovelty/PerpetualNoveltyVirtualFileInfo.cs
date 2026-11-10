@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using UnityAsset.NET.BundleFiles;
 using UnityAsset.NET.FileSystem;
-using UnityAsset.NET.FileSystem.DirectFileSystem;
 using UnityAsset.NET.IO;
 using UnityAsset.NET.IO.Reader;
 
@@ -12,50 +11,48 @@ namespace TinyStudio.Games.PerpetualNovelty;
 
 public class PerpetualNoveltyVirtualFileInfo : IVirtualFileInfo
 {
-    public SafeFileHandle Handle { get; }
+    private readonly IVirtualFile _source;
+    private readonly long _offset;
+    private readonly long _maskedLength;
+    private readonly byte _key;
+    
+    public PerpetualNoveltyVirtualFileInfo(IVirtualFileInfo source, long maskedLength)
+    {
+        if (source.FileType != FileType.BundleFile)
+            throw new ArgumentException($"Not a bundle: {source.Path}", nameof(source));
+
+        _source = source.GetFile();
+        Path = source.Path;
+        Name = source.Name;
+        Length = source.Length;
+        FileType = source.FileType;
+        _maskedLength = maskedLength;
+
+        var reader = new CustomFileReader(source);
+
+        // The signature is read before the header for the same reason it always was: this format keeps the header's own
+        // signature, so the parse starts after it, and the check is what keeps a wrong input from being masked.
+        var signature = Encoding.UTF8.GetString(reader.ReadBytes(7));
+        if (signature != "UnityFS")
+            throw new Exception($"Not a UnityFS bundle: {source.Path}");
+
+        var header = Header.Parse(reader);
+        BundleFile.AlignAfterHeader(reader, header);
+
+        _offset = reader.Position;
+        ((IReader)reader).Seek(1, SeekOrigin.Current);
+        _key = reader.ReadByte();
+    }
+    
+    public SafeFileHandle Handle => _source.Handle;
+
     public string Path { get; }
+
     public string Name { get; }
+
     public long Length { get; }
+
     public FileType FileType { get; }
 
-    private readonly long _offset;
-    private readonly byte _key;
-    private readonly UInt32 _blocksAndDirectoryInfoLength;
-
-    public PerpetualNoveltyVirtualFileInfo(string physicalPath)
-    { 
-        Path = physicalPath;
-        Name = System.IO.Path.GetFileName(physicalPath);
-        Length = new FileInfo(physicalPath).Length;
-        Handle = File.OpenHandle(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        
-        var reader = new CustomFileReader(this);
-
-        var sign = Encoding.UTF8.GetString(reader.ReadBytes(7));
-        if (sign == "UnityFS")
-        {
-            FileType = FileType.BundleFile;
-            var header = Header.Parse(reader);
-            BundleFile.AlignAfterHeader(reader, header);
-        
-            _offset = reader.Position;
-            _blocksAndDirectoryInfoLength = header.CompressedBlocksInfoSize;
-            ((IReader)reader).Seek(1, SeekOrigin.Current);
-            _key = reader.ReadByte();
-        }
-        else
-        {
-            FileType = FileType.SerializedFile;
-        }
-    }
-
-    public IVirtualFile GetFile()
-    {
-        return FileType switch
-        {
-            FileType.BundleFile => new PerpetualNoveltyFile(Handle, 0, Length, _offset, _blocksAndDirectoryInfoLength,
-                _key),
-            _ => new DirectFile(Handle, 0, Length),
-        };
-    }
+    public IVirtualFile GetFile() => new PerpetualNoveltyFile(_source, _offset, _maskedLength, _key);
 }

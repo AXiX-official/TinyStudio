@@ -40,6 +40,10 @@ public partial class App : Application
             {
                 DataContext = viewModel
             };
+
+            // A load that opened an archive may have spilled entries into the temp directory; releasing the session is
+            // what deletes them.
+            desktop.Exit += (_, _) => viewModel.Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();

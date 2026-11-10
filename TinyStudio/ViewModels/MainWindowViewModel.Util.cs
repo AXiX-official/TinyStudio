@@ -17,6 +17,11 @@ public partial class MainWindowViewModel
     {
         _window = window;
     }
+    
+    public void Dispose()
+    {
+        _assetManager.Dispose();
+    }
 
     private void LogStatus(string msg, LogLevel level = LogLevel.Info)
     {

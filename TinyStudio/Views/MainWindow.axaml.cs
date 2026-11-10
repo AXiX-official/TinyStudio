@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,6 +24,9 @@ public partial class MainWindow : Window
     {
         if (e.DataTransfer.Contains(DataFormat.File))
         {
+            // A dropped file is loaded by the same path the menu uses, so a zip or an apk expands instead of being shown
+            // as one unrecognised input. A dropped folder is expanded to its files first, and the pattern is "*" rather
+            // than "*.*" because a Unity bundle does not have to have an extension at all.
             var allFilePaths = e.DataTransfer.Items
                 .Select(x => x.TryGetFile()?.Path)
                 .Where(x => x != null)
@@ -35,10 +39,12 @@ public partial class MainWindow : Window
                     }
                     if (Directory.Exists(localPath))
                     {
-                        return Directory.EnumerateFiles(localPath, "*.*", SearchOption.AllDirectories);
+                        return Directory.EnumerateFiles(localPath, "*", SearchOption.AllDirectories);
                     }
                     return [];
-                }).ToList();
+                })
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             if (allFilePaths.Any() && DataContext is MainWindowViewModel viewModel)
             {
