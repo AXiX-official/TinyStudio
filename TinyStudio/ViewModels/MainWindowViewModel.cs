@@ -643,7 +643,8 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             WriteGeneratedSource = true,
             CacheDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TypeRegistryCache")
-        }
+        },
+        MissingType = ErrorPolicy.SkipAndReport
     };
 
     public MainWindowViewModel()

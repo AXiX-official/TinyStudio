@@ -41,13 +41,21 @@ public partial class MainWindowViewModel
         {
             using var image = await Task.Run(
                 () => {
-                    return SelectedAsset.Value switch
+                    switch (SelectedAsset.Value)
                     {
-                        ITexture2D texture2D => _assetManager.DecodeTexture2DToImage(texture2D),
-                        ISprite sprite => _assetManager.DecodeSpriteToImage(sprite),
-                        _ => throw new Exception("Unsupported asset type for image saving.")
-                    };
-                    
+                        case ITexture2D texture2D:
+                        {
+                            _ = SelectedAsset.GetVirtualFile(out var src);
+                            return _assetManager.DecodeTexture2DToImage(texture2D, src);
+                        }
+                        case ISprite sprite:
+                        {
+                            _ = SelectedAsset.GetVirtualFile(out var src);
+                            return _assetManager.DecodeSpriteToImage(sprite, src);
+                        }
+                        default:
+                            throw new Exception("Unsupported asset type for image saving.");
+                    }
                 });
             await using var stream = await file.OpenWriteAsync();
             await image.SaveAsPngAsync(stream);

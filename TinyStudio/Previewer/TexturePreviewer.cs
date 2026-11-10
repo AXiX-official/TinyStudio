@@ -13,6 +13,7 @@ using TinyStudio.Views;
 using UnityAsset.NET;
 using UnityAsset.NET.AssetHelper;
 using UnityAsset.NET.Enums;
+using UnityAsset.NET.FileSystem;
 using UnityAsset.NET.Types.PreDefined.Interfaces;
 
 namespace TinyStudio.Previewer;
@@ -35,10 +36,16 @@ public class TexturePreviewer : IPreviewer
         _zoomableImageView ??= new ZoomableImageView();
 
         if (asset.Value is ITexture2D texture2D)
-            _ = LoadTextureAsync(texture2D, assetManager, _zoomableImageView);
+        {
+            _ = asset.GetVirtualFile(out var src);
+            _ = LoadTextureAsync(texture2D, src, assetManager, _zoomableImageView);
+        }
         else if (asset.Value is ISprite sprite)
-            _ = LoadSpriteAsync(sprite, assetManager, _zoomableImageView);
-
+        {
+            _ = asset.GetVirtualFile(out var src);
+            _ = LoadSpriteAsync(sprite, src, assetManager, _zoomableImageView);
+        }
+        
         return _zoomableImageView;
     }
     
@@ -47,11 +54,11 @@ public class TexturePreviewer : IPreviewer
         _zoomableImageView?.CleanContext();
     }
 
-    private static async Task LoadTextureAsync(ITexture2D texture2D, AssetManager assetManager, ZoomableImageView zoomableImageView)
+    private static async Task LoadTextureAsync(ITexture2D texture2D, IVirtualFileInfo? src, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
         var (pixelData, width, height) = await Task.Run(() =>
         {
-            var data = assetManager.DecodeTexture2D(texture2D);
+            var data = assetManager.DecodeTexture2D(texture2D, src);
             FlipVertical(data, texture2D.m_Width, texture2D.m_Height, 4);
             return (data, texture2D.m_Width, texture2D.m_Height);
         });
@@ -61,10 +68,10 @@ public class TexturePreviewer : IPreviewer
         zoomableImageView.SetInfo($"Width: {texture2D.m_Width}\nHeight: {texture2D.m_Height}\nFormat: {((TextureFormat)texture2D.m_TextureFormat).ToString()}");
     }
     
-    private static async Task LoadSpriteAsync(ISprite sprite, AssetManager assetManager, ZoomableImageView zoomableImageView)
+    private static async Task LoadSpriteAsync(ISprite sprite, IVirtualFileInfo? src, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
         // TODO: Optimize this path to also use WriteableBitmap
-        using var image = await Task.Run(() => assetManager.DecodeSpriteToImage(sprite));
+        using var image = await Task.Run(() => assetManager.DecodeSpriteToImage(sprite, src));
         await LoadImageAsync(image, zoomableImageView);
     }
     
