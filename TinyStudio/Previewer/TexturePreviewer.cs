@@ -6,8 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 using TinyStudio.Models;
 using TinyStudio.Views;
 using UnityAsset.NET;
@@ -70,19 +69,33 @@ public class TexturePreviewer : IPreviewer
     
     private static async Task LoadSpriteAsync(ISprite sprite, IVirtualFileInfo? src, AssetManager assetManager, ZoomableImageView zoomableImageView)
     {
-        // TODO: Optimize this path to also use WriteableBitmap
         using var image = await Task.Run(() => assetManager.DecodeSpriteToImage(sprite, src));
         await LoadImageAsync(image, zoomableImageView);
     }
     
-    private static async Task LoadImageAsync(Image<Bgra32> image, ZoomableImageView zoomableImageView)
+    private static Task LoadImageAsync(SKBitmap image, ZoomableImageView zoomableImageView)
     {
-        var memoryStream = new MemoryStream();
-        await image.SaveAsPngAsync(memoryStream);
-        memoryStream.Seek(0, SeekOrigin.Begin);
+        var writeableBitmap = new WriteableBitmap(
+            new PixelSize(image.Width, image.Height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Unpremul);
 
-        var bitmap = new Bitmap(memoryStream);
-        zoomableImageView.SetImage(bitmap);
+        // Straight from the decoded pixels into the framebuffer: encoding a PNG only to decode it again was the whole
+        // cost of this path, and the buffer the decoder already produced is the thing the control draws.
+        using (var framebuffer = writeableBitmap.Lock())
+        {
+            var pixels = image.GetPixelSpan();
+            var rowBytes = Math.Min(image.RowBytes, framebuffer.RowBytes);
+            for (var y = 0; y < image.Height; y++)
+            {
+                Marshal.Copy(pixels.Slice(y * image.RowBytes, rowBytes).ToArray(), 0,
+                    IntPtr.Add(framebuffer.Address, y * framebuffer.RowBytes), rowBytes);
+            }
+        }
+
+        zoomableImageView.SetImage(writeableBitmap);
+        return Task.CompletedTask;
     }
     
     private static Task LoadImageAsync(byte[] data, int width, int height, ZoomableImageView zoomableImageView)
@@ -96,7 +109,8 @@ public class TexturePreviewer : IPreviewer
             new PixelSize(width, height),
             new Vector(96, 96),
             PixelFormat.Bgra8888,
-            AlphaFormat.Premul);
+            // Unity stores straight alpha; declaring it premultiplied darkened the edges of every translucent pixel.
+            AlphaFormat.Unpremul);
 
         using (var framebuffer = writeableBitmap.Lock())
         {

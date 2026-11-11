@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
-using SixLabors.ImageSharp;
+using SkiaSharp;
 using TinyStudio.Models;
 using TinyStudio.Views;
 using UnityAsset.NET.AssetHelper;
@@ -46,7 +46,7 @@ public partial class MainWindowViewModel
                         case ITexture2D texture2D:
                         {
                             _ = SelectedAsset.GetVirtualFile(out var src);
-                            return _assetManager.DecodeTexture2DToImage(texture2D, src);
+                            return _assetManager.DecodeTexture2DToBitmap(texture2D, src);
                         }
                         case ISprite sprite:
                         {
@@ -58,7 +58,8 @@ public partial class MainWindowViewModel
                     }
                 });
             await using var stream = await file.OpenWriteAsync();
-            await image.SaveAsPngAsync(stream);
+            using (var data = SKImage.FromBitmap(image).Encode(SKEncodedImageFormat.Png, 100))
+                data.SaveTo(stream);
         
             LogStatus($"Image saved: {file.Path.LocalPath}");
         }
