@@ -23,9 +23,6 @@ public sealed class Gf2Transform : VirtualFileTransform
 
     public override string Name => "GF2";
 
-    public override bool IsInterested(string name, long length, FileType fileType)
-        => fileType != FileType.Unknown || IsContainerName(name);
-
     public override Task<List<IVirtualFileInfo>> TransformAsync(List<IVirtualFileInfo> files,
         IProgress<LoadProgress>? progress = null)
     {
